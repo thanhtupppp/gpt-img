@@ -7,7 +7,7 @@ export interface WorkflowBuilderStep extends WorkflowStep {
 export function buildWorkflowPrompt(steps: WorkflowBuilderStep[]): string {
   return steps
     .map((step) => {
-      const command = step.commandId.trim().replace(/^\\/+/, "");
+      const command = step.commandId.trim().replace(/^\/+/, "");
       if (!command) return "";
       const args = step.argumentsText.trim();
       return args ? `/${command} ${args}` : `/${command}`;
