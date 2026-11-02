@@ -1,5 +1,5 @@
 import {useMemo,useState} from "react";
-import {Search,Grid2X2,Workflow,Command,Heart,Settings,Plus,SlidersHorizontal,Copy,Check,ArrowUpRight,Sparkles,Image as ImageIcon,Layers3,ChevronDown,PanelLeftClose,Menu,Code2,BookOpen,Star,Clock3} from "lucide-react";
+import {Search,Grid2X2,Workflow,Command,Heart,Settings,Plus,SlidersHorizontal,Copy,Check,ArrowUpRight,Sparkles,Image as ImageIcon,Layers3,ChevronDown,Menu,Code2} from "lucide-react";
 import {templates,categories} from "./data/templates"; import {commandModules} from "./data/commands"; import type {Category,Template} from "./types";
 const nav=[{label:"Overview",icon:Grid2X2},{label:"Template Library",icon:ImageIcon},{label:"Workflows",icon:Workflow},{label:"Command Library",icon:Command},{label:"Favorites",icon:Heart}];
 export default function App(){const [page,setPage]=useState("Template Library");const [query,setQuery]=useState("");const [category,setCategory]=useState<Category>("All");const [profile,setProfile]=useState("All profiles");const [selected,setSelected]=useState<Template|null>(null);const [favorites,setFavorites]=useState<string[]>([]);const [copied,setCopied]=useState("");const [mobileOpen,setMobileOpen]=useState(false);
