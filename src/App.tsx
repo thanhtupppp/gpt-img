@@ -1,8 +1,10 @@
-import {useMemo,useState} from "react";
+import {useEffect,useMemo,useState} from "react";
 import {Check,ChevronDown,Command,Copy,Grid2X2,Image as ImageIcon,Plus,Search,SlidersHorizontal,Sparkles,Workflow} from "lucide-react";
 import {templates,categories} from "./data/templates";
 import {commandModules} from "./data/commands";
 import type {Category,Template} from "./types";
+import {initializeTemplateLibrary} from "./storage/seed";
+import {listFavoriteIds,setFavorite} from "./storage/templateRepository";
 import {AppShell,type AppPage} from "./components/layout/AppShell";
 import {StatCard} from "./components/ui/StatCard";
 import {TemplateCard} from "./components/templates/TemplateCard";
@@ -24,8 +26,10 @@ export default function App(){
   const [profile,setProfile]=useState("All profiles");
   const [selected,setSelected]=useState<Template|null>(null);
   const [favorites,setFavorites]=useState<string[]>([]);
+  const [storageError,setStorageError]=useState("");
+  useEffect(()=>{\n    let active=true;\n    initializeTemplateLibrary(templates).then(()=>listFavoriteIds()).then(ids=>{if(active)setFavorites(ids);}).catch(()=>{if(active)setStorageError("Không thể mở bộ nhớ cục bộ. Hãy kiểm tra chế độ riêng tư hoặc quyền lưu trữ của trình duyệt.");});\n    return ()=>{active=false;};\n  },[]);
   const [copied,setCopied]=useState("");
-  const toggleFavorite=(id:string)=>setFavorites(current=>current.includes(id)?current.filter(item=>item!==id):[...current,id]);
+  const toggleFavorite=(id:string)=>{\n    const next=!favorites.includes(id);\n    setFavorite(id,next).then(()=>setFavorites(current=>next?[...current.filter(item=>item!==id),id]:current.filter(item=>item!==id))).catch(()=>setStorageError("Không thể lưu thay đổi yêu thích vào bộ nhớ cục bộ."));\n  };
   const copy=async(value:string,id:string)=>{
     try { await navigator.clipboard.writeText(value); setCopied(id); window.setTimeout(()=>setCopied(""),1400); }
     catch { setCopied("copy-error"); window.setTimeout(()=>setCopied(""),1800); }
@@ -39,13 +43,13 @@ export default function App(){
 
   return <AppShell page={page} onNavigate={next=>{setPage(next);setSelected(null);}} favoriteCount={favorites.length}>
     {selected ? <TemplateDetail template={selected} onBack={()=>setSelected(null)} onCopy={copy} copied={copied} favorite={favorites.includes(selected.id)} onFavorite={()=>toggleFavorite(selected.id)}/> :
-    <div className="space-y-7">
+    <div className="space-y-7">\n      {storageError&&<div role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-xs text-rose-200">{storageError}</div>}
       <header className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div><div className="mb-3 flex items-center gap-2 text-xs font-medium text-indigo-300"><Sparkles size={14}/> PROFESSIONAL IMAGE EDITING COMMAND SYSTEM</div><h1 className="text-3xl font-semibold tracking-tight md:text-[40px]">{pageCopy[page].title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{pageCopy[page].description}</p></div>
         {page==="Template Library"&&<button type="button" disabled title="Custom template creation is planned for P2" className="inline-flex cursor-not-allowed items-center justify-center gap-2 self-start rounded-xl bg-indigo-400/50 px-4 py-2.5 text-sm font-semibold text-[#101528]/70"><Plus size={16}/> New template <span className="text-[10px]">P2</span></button>}
       </header>
 
-      {page==="Settings" ? <section className="max-w-2xl rounded-2xl border border-line bg-panel p-6"><h2 className="font-semibold">Library preferences</h2><p className="mt-2 text-sm leading-6 text-slate-400">Phiên bản hiện tại sử dụng dữ liệu mẫu tĩnh. Lưu trữ IndexedDB, quản lý template cá nhân và đồng bộ dữ liệu chưa được bật trong P1.</p><div className="mt-5 rounded-xl bg-slate-900 p-4 text-xs text-slate-400">PIECS Core · schema v1.0.0 · Master profile · 80 registered commands</div></section> :
+      {page==="Settings" ? <section className="max-w-2xl rounded-2xl border border-line bg-panel p-6"><h2 className="font-semibold">Library preferences</h2><p className="mt-2 text-sm leading-6 text-slate-400">Dữ liệu thư viện và danh sách yêu thích được lưu cục bộ bằng IndexedDB trên thiết bị này. Quản lý template cá nhân sẽ được mở rộng trong P2; không có tài khoản hoặc đồng bộ cloud.</p><div className="mt-5 rounded-xl bg-slate-900 p-4 text-xs text-slate-400">PIECS Core · schema v1.0.0 · Master profile · 80 registered commands</div></section> :
       page==="Command Library" ? <CommandLibrary copied={copied} onCopy={copy}/> :
       page==="Workflows" ? <EmptyFeature icon={Workflow} title="Workflow Builder" description="Workflow Builder, các bước tuần tự và bộ workflow mẫu sẽ được triển khai trong P3."/> :
       page==="Overview" ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(templates.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Planned reference pipelines"/></div> :
