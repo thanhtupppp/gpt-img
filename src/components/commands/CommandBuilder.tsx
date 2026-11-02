@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Copy, Plus, Trash2 } from "lucide-react";
 import { commandCatalog, searchCommands } from "../../data/commandCatalog";
-import { buildCommandPrompt, moveCommandStep, type CommandBuilderStep } from "./commandBuilder";
+import { buildCommandPrompt, moveCommandStep, type CommandBuilderStep } from "../../features/commands/commandBuilder";
 
 type Props = { copied: string; onCopy: (value: string, id: string) => void };
 
