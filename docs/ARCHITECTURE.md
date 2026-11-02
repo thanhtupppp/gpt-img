@@ -18,7 +18,7 @@ The current schema version is `1.0.0`. Changes that alter persisted data must in
 
 All imported or persisted external data must be treated as `unknown` until validated. Validation returns structured issues with a field path and human-readable message. Invalid data must not be written to storage.
 
-## Styling contract
+## Validation coverage\n\n- `validateTemplate` checks template metadata, profile, command references, scalar parameters, origin, and schema version.\n- `validateCommand` checks command metadata and parameter definitions, including enum options and numeric ranges.\n- `validateWorkflow` requires at least one ordered step and validates each step's scalar parameters.\n- `validateProfile` checks profile defaults and rules.\n- Type guards are provided for all four persisted entity types.\n- Validation functions accept `unknown`; callers must validate before persistence.\n\n## Styling contract
 
 Tailwind CSS remains the utility layer. Shared brand, semantic, typography, spacing, radius, and shadow values are exposed as CSS custom properties in `src/styles/tokens.css`. Feature code should consume tokens rather than introduce unrelated hard-coded design values.
 
@@ -31,4 +31,4 @@ Tailwind CSS remains the utility layer. Shared brand, semantic, typography, spac
 
 ## Current P1 implementation notes
 
-The existing MVP data and UI remain in place during the foundation stage to reduce regression risk. Legacy `Template` records are not yet migrated to `PiecsTemplate`; that conversion belongs in the template repository/seed work in P2.
+The existing MVP data and UI remain in place during the foundation stage to reduce regression risk. Legacy `Template` records are not yet migrated to `PiecsTemplate`; that conversion belongs in the template repository/seed work in P2. The remaining UI decomposition, shared components, route shell, and responsive behavior are tracked separately as P1 completion work.
