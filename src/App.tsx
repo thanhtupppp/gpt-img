@@ -12,6 +12,7 @@ import {AppShell,type AppPage} from "./components/layout/AppShell";
 import {StatCard} from "./components/ui/StatCard";
 import {TemplateCard} from "./components/templates/TemplateCard";
 import {TemplateDetail} from "./components/templates/TemplateDetail";
+import {CommandLibrary} from "./components/commands/CommandLibrary";
 
 const pageCopy:Record<AppPage,{title:string;description:string}> = {
   "Overview":{title:"Creative workspace",description:"Your PIECS workspace at a glance."},
@@ -85,5 +86,4 @@ export default function App(){
   </AppShell>;
 }
 
-function CommandLibrary({copied,onCopy}:{copied:string;onCopy:(value:string,id:string)=>void}){return <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{commandModules.map(module=><section key={module.name} className="rounded-2xl border border-line bg-panel/70 p-5"><h2 className={`mb-4 text-sm font-semibold ${module.color}`}>{module.name}<span className="ml-2 text-xs text-slate-600">{module.commands.length}</span></h2><div className="space-y-2">{module.commands.map(command=><button type="button" key={command} onClick={()=>onCopy("/"+command,command)} className="flex min-h-9 w-full items-center justify-between rounded-lg px-2 py-1.5 text-left font-mono text-xs text-slate-300 hover:bg-white/[.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"><span>/{command}</span>{copied===command?<Check size={13} className="text-emerald-300"/>:<Copy size={13} className="text-slate-600"/>}</button>)}</div></section>)}</div>}
 function EmptyFeature({icon:Icon,title,description}:{icon:typeof Workflow;title:string;description:string}){return <section className="rounded-2xl border border-dashed border-line bg-panel/30 px-5 py-16 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-indigo-400/10 text-indigo-300"><Icon size={22}/></div><h2 className="mt-4 font-semibold">{title}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-400">{description}</p></section>}
