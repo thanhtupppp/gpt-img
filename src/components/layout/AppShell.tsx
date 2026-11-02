@@ -1,4 +1,4 @@
-import type {ReactNode} from "react";
+import {useState,type ReactNode} from "react";
 import {Command, Grid2X2, Heart, Image as ImageIcon, Layers3, Menu, Settings, Sparkles, Workflow, X} from "lucide-react";
 
 export type AppPage = "Overview" | "Template Library" | "Workflows" | "Command Library" | "Favorites" | "Settings";
@@ -12,7 +12,7 @@ const navigation = [
 
 type AppShellProps = {page:AppPage; onNavigate:(page:AppPage)=>void; favoriteCount:number; children:ReactNode};
 export function AppShell({page,onNavigate,favoriteCount,children}:AppShellProps) {
-  const [mobileOpen,setMobileOpen] = useMobileMenu();
+  const [mobileOpen,setMobileOpen] = useState(false);
   const navigate = (next:AppPage) => {onNavigate(next);setMobileOpen(false);};
   return <div className="min-h-screen text-slate-100 lg:flex">
     {mobileOpen && <button aria-label="Close navigation overlay" onClick={()=>setMobileOpen(false)} className="fixed inset-0 z-20 bg-black/65 backdrop-blur-sm lg:hidden"/>}
@@ -36,10 +36,3 @@ export function AppShell({page,onNavigate,favoriteCount,children}:AppShellProps)
     </div>
   </div>;
 }
-function useMobileMenu():[boolean,(open:boolean)=>void] {
-  // Kept in a tiny hook so the shell owns its responsive navigation state.
-  const React = requireReact();
-  return React.useState(false);
-}
-function requireReact(){return ReactHooks;}
-import * as ReactHooks from "react";
