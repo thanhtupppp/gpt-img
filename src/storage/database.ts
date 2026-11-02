@@ -1,5 +1,5 @@
 const DATABASE_NAME = "piecs-library";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 let databasePromise: Promise<IDBDatabase> | undefined;
 
