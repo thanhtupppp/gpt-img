@@ -1,0 +1,2 @@
+export type Category = "All"|"Product Photography"|"Portrait & Beauty"|"Creative Compositing"|"Advertising & Poster"|"Photo Restoration"|"Landscape & Nature"|"Architecture & Interior"|"Creative & Artistic";
+export type Template = {id:string;name:string;category:Exclude<Category,"All">;description:string;profile:"Professional"|"Studio"|"Master";commands:string[];tags:string[];gradient:string;popular?:boolean};
