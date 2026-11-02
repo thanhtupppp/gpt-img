@@ -59,7 +59,7 @@ export function WorkflowBuilder({ copied, onCopy }: Props) {
       name: name.trim(),
       description: description.trim(),
       steps: steps.map(({ id, commandId, argumentsText }) => ({
-        id, commandId, parameters: argumentsText.trim() ? { raw: argumentsText.trim() } : {},
+        id, commandId, parameters: { raw: argumentsText.trim() },
       })),
       version: "1.0.0",
       schemaVersion: PIECS_SCHEMA_VERSION,
