@@ -12,6 +12,7 @@ import {StatCard} from "./components/ui/StatCard";
 import {TemplateCard} from "./components/templates/TemplateCard";
 import {TemplateDetail} from "./components/templates/TemplateDetail";
 import {CommandLibrary} from "./components/commands/CommandLibrary";
+import {WorkflowBuilder} from "./components/workflows/WorkflowBuilder";
 
 const pageCopy:Record<AppPage,{title:string;description:string}> = {
   "Overview":{title:"Creative workspace",description:"Your PIECS workspace at a glance."},
@@ -70,7 +71,7 @@ export default function App(){
 
       {page==="Settings" ? <section className="max-w-2xl rounded-2xl border border-line bg-panel p-6"><h2 className="font-semibold">Library preferences</h2><p className="mt-2 text-sm leading-6 text-slate-400">Dữ liệu thư viện và danh sách yêu thích được lưu cục bộ bằng IndexedDB trên thiết bị này. Anh có thể tạo, sửa, xóa template cá nhân và xuất/nhập JSON để sao lưu thủ công; không có tài khoản hoặc đồng bộ cloud.</p><div className="mt-5 rounded-xl bg-slate-900 p-4 text-xs text-slate-400">PIECS Core · schema v1.0.0 · Master profile · 80 registered commands</div></section> :
       page==="Command Library" ? <CommandLibrary copied={copied} onCopy={copy}/> :
-      page==="Workflows" ? <EmptyFeature icon={Workflow} title="Workflow Builder" description="Workflow Builder, các bước tuần tự và bộ workflow mẫu sẽ được triển khai trong P3."/> :
+      page==="Workflows" ? <WorkflowBuilder copied={copied} onCopy={copy}/> :
       page==="Overview" ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(library.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Planned reference pipelines"/></div> :
       <>
         {page==="Template Library"&&<div className="grid gap-3 sm:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(templates.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Reference pipelines"/></div>}
