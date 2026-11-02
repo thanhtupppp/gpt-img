@@ -9,7 +9,7 @@ export function toSystemTemplate(template: Template, timestamp: string): PiecsTe
     description: template.description,
     category: template.category,
     profile: template.profile,
-    commandIds: template.commands.map((command) => command.replace(/^\\//, "")),
+    commandIds: template.commands.map((command) => command.startsWith("/") ? command.slice(1) : command),
     parameters: {},
     tags: [...template.tags],
     origin: "system",
