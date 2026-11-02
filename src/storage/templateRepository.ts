@@ -147,7 +147,6 @@ export async function importCustomTemplates(values: unknown[]): Promise<PiecsTem
     await completed;
     return templates;
   } catch (error) {
-    if (transaction.readyState !== "done") transaction.abort();
     await completed.catch(() => undefined);
     if (error instanceof TemplateRepositoryError) throw error;
     throw new TemplateRepositoryError(error instanceof Error ? error.message : "Unable to import templates.");
