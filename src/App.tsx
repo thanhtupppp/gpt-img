@@ -1,5 +1,5 @@
 import {useMemo,useState} from "react";
-import {Check,ChevronDown,Code2,Command,Copy,Grid2X2,Image as ImageIcon,Plus,Search,SlidersHorizontal,Sparkles,Workflow} from "lucide-react";
+import {Check,ChevronDown,Command,Copy,Grid2X2,Image as ImageIcon,Plus,Search,SlidersHorizontal,Sparkles,Workflow} from "lucide-react";
 import {templates,categories} from "./data/templates";
 import {commandModules} from "./data/commands";
 import type {Category,Template} from "./types";
