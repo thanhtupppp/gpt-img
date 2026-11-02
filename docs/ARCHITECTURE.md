@@ -29,6 +29,14 @@ Tailwind CSS remains the utility layer. Shared brand, semantic, typography, spac
 - E2E tests cover user journeys after the relevant feature is implemented.
 - Pull requests must pass typecheck, test, and production build.
 
+## UI composition and responsive shell
+
+- `AppShell` owns the responsive sidebar, mobile overlay, navigation state, top bar, and main content landmark.
+- Template cards, template detail, and stat cards are isolated reusable components under `src/components`.
+- `App.tsx` composes page-level features and owns cross-page state; navigation remains lightweight client state rather than adding a routing dependency.
+- Interactive controls expose accessible names, pressed/current states, visible focus styles, and mobile-friendly touch targets.
+- Workflow Builder and custom-template creation remain intentionally non-functional placeholders and are labeled as planned work; they are not represented as completed features.
+
 ## Current P1 implementation notes
 
 The existing MVP data and UI remain in place during the foundation stage to reduce regression risk. Legacy `Template` records are not yet migrated to `PiecsTemplate`; that conversion belongs in the template repository/seed work in P2. The remaining UI decomposition, shared components, route shell, and responsive behavior are tracked separately as P1 completion work.
