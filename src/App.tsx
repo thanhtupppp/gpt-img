@@ -1,7 +1,6 @@
 import {useEffect,useMemo,useState} from "react";
-import {Check,ChevronDown,Command,Copy,Download,Grid2X2,Image as ImageIcon,Plus,Search,SlidersHorizontal,Sparkles,Upload,Workflow,Trash2,Edit3} from "lucide-react";
+import {ChevronDown,Command,Copy,Download,Grid2X2,Image as ImageIcon,Plus,Search,SlidersHorizontal,Sparkles,Upload,Workflow,Trash2,Edit3} from "lucide-react";
 import {templates,categories} from "./data/templates";
-import {commandModules} from "./data/commands";
 import type {Category,Template} from "./types";
 import {initializeTemplateLibrary} from "./storage/seed";
 import {cloneTemplate,deleteCustomTemplate,importCustomTemplates,listFavoriteIds,listTemplates,saveCustomTemplate,setFavorite} from "./storage/templateRepository";
