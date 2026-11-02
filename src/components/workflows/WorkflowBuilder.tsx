@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Check, Copy, Plus, Save, Trash2, Workflow as WorkflowIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Plus, Save, Trash2, Workflow as WorkflowIcon } from "lucide-react";
 import { commandCatalog, searchCommands } from "../../data/commandCatalog";
 import { PIECS_SCHEMA_VERSION, type PiecsWorkflow } from "../../domain/types";
 import { buildWorkflowPrompt, moveWorkflowStep, validateWorkflowCommandIds, type WorkflowBuilderStep } from "../../features/workflows/workflowBuilder";
