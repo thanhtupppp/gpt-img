@@ -1,10 +1,13 @@
 import {useEffect,useMemo,useState} from "react";
-import {Check,ChevronDown,Command,Copy,Grid2X2,Image as ImageIcon,Plus,Search,SlidersHorizontal,Sparkles,Workflow} from "lucide-react";
+import {Check,ChevronDown,Command,Copy,Download,Grid2X2,Image as ImageIcon,Plus,Search,SlidersHorizontal,Sparkles,Upload,Workflow,Trash2,Edit3} from "lucide-react";
 import {templates,categories} from "./data/templates";
 import {commandModules} from "./data/commands";
 import type {Category,Template} from "./types";
 import {initializeTemplateLibrary} from "./storage/seed";
-import {listFavoriteIds,setFavorite} from "./storage/templateRepository";
+import {cloneTemplate,deleteCustomTemplate,listFavoriteIds,listTemplates,saveCustomTemplate,setFavorite} from "./storage/templateRepository";
+import {exportTemplates,parseTemplateImport} from "./storage/templateTransfer";
+import type {PiecsTemplate} from "./domain/types";
+import {TemplateEditor} from "./components/templates/TemplateEditor";
 import {AppShell,type AppPage} from "./components/layout/AppShell";
 import {StatCard} from "./components/ui/StatCard";
 import {TemplateCard} from "./components/templates/TemplateCard";
@@ -25,14 +28,18 @@ export default function App(){
   const [category,setCategory]=useState<Category>("All");
   const [profile,setProfile]=useState("All profiles");
   const [selected,setSelected]=useState<Template|null>(null);
+  const [library,setLibrary]=useState<PiecsTemplate[]>([]);
+  const [editorOpen,setEditorOpen]=useState(false);
+  const [editing,setEditing]=useState<PiecsTemplate|undefined>();
   const [favorites,setFavorites]=useState<string[]>([]);
   const [storageError,setStorageError]=useState("");
   useEffect(()=>{
     let active=true;
-    initializeTemplateLibrary(templates).then(()=>listFavoriteIds()).then(ids=>{if(active)setFavorites(ids);}).catch(()=>{if(active)setStorageError("Không thể mở bộ nhớ cục bộ. Hãy kiểm tra chế độ riêng tư hoặc quyền lưu trữ của trình duyệt.");});
+    initializeTemplateLibrary(templates).then(()=>Promise.all([listFavoriteIds(),listTemplates()])).then(([ids,items])=>{if(active){setFavorites(ids);setLibrary(items);}}).catch(()=>{if(active)setStorageError("Không thể mở bộ nhớ cục bộ. Hãy kiểm tra chế độ riêng tư hoặc quyền lưu trữ của trình duyệt.");});
     return ()=>{active=false;};
   },[]);
   const [copied,setCopied]=useState("");
+  const refreshLibrary=async()=>{setLibrary(await listTemplates());};
   const toggleFavorite=(id:string)=>{
     const next=!favorites.includes(id);
     setFavorite(id,next).then(()=>setFavorites(current=>next?[...current.filter(item=>item!==id),id]:current.filter(item=>item!==id))).catch(()=>setStorageError("Không thể lưu thay đổi yêu thích vào bộ nhớ cục bộ."));
@@ -41,12 +48,15 @@ export default function App(){
     try { await navigator.clipboard.writeText(value); setCopied(id); window.setTimeout(()=>setCopied(""),1400); }
     catch { setCopied("copy-error"); window.setTimeout(()=>setCopied(""),1800); }
   };
-  const visible=useMemo(()=>templates.filter(t=>
+  const visible=useMemo(()=>library.map(item=>({
+    id:item.id,name:item.name,description:item.description,category:item.category as Template["category"],profile:item.profile,
+    commands:item.commandIds.map(command=>"/"+command),tags:item.tags,gradient:"from-indigo-300/25 via-violet-500/10 to-slate-950",popular:false
+  })).filter(t=>
     (category==="All"||t.category===category)&&
     (profile==="All profiles"||t.profile===profile)&&
     [t.name,t.description,t.id,...t.tags,...t.commands].join(" ").toLowerCase().includes(query.trim().toLowerCase())&&
     (page!=="Favorites"||favorites.includes(t.id))
-  ),[category,profile,query,page,favorites]);
+  ),[library,category,profile,query,page,favorites]);
 
   return <AppShell page={page} onNavigate={next=>{setPage(next);setSelected(null);}} favoriteCount={favorites.length}>
     {selected ? <TemplateDetail template={selected} onBack={()=>setSelected(null)} onCopy={copy} copied={copied} favorite={favorites.includes(selected.id)} onFavorite={()=>toggleFavorite(selected.id)}/> :
