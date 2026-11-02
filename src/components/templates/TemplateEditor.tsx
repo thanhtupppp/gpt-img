@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { X } from "lucide-react";
 import type { PiecsTemplate, TemplateProfile } from "../../domain/types";
 
@@ -21,7 +21,7 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const submit = async (event: React.FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     const now = new Date().toISOString();
     const value: PiecsTemplate = {
