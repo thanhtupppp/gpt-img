@@ -86,4 +86,3 @@ export default function App(){
   </AppShell>;
 }
 
-function EmptyFeature({icon:Icon,title,description}:{icon:typeof Workflow;title:string;description:string}){return <section className="rounded-2xl border border-dashed border-line bg-panel/30 px-5 py-16 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-indigo-400/10 text-indigo-300"><Icon size={22}/></div><h2 className="mt-4 font-semibold">{title}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-400">{description}</p></section>}
