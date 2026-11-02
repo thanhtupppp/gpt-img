@@ -49,3 +49,10 @@ The existing MVP data and UI remain in place during the foundation stage to redu
 - Custom templates can be saved and deleted; deleting a custom template also removes its favorite marker.
 - Favorites persist across reloads. Data remains on the current browser/device; clearing site data or changing browsers may remove or isolate it.
 - `fake-indexeddb` provides a deterministic IndexedDB implementation for repository unit tests.
+
+## P2 template management and transfer
+
+- `TemplateEditor` creates and edits custom templates only; system records remain immutable.
+- The library view reads from IndexedDB and exposes custom-template edit/delete actions with a confirmation prompt.
+- JSON export includes custom templates only. Import validates schema, origin, and duplicate IDs; existing records are never silently overwritten.
+- Import/export is a manual local backup/transfer path, not cloud synchronization.
