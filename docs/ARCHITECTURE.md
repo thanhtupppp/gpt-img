@@ -40,3 +40,12 @@ Tailwind CSS remains the utility layer. Shared brand, semantic, typography, spac
 ## Current P1 implementation notes
 
 The existing MVP data and UI remain in place during the foundation stage to reduce regression risk. Legacy `Template` records are not yet migrated to `PiecsTemplate`; that conversion belongs in the template repository/seed work in P2. The remaining UI decomposition, shared components, route shell, and responsive behavior are tracked separately as P1 completion work.
+
+## P2 local-first persistence
+
+- Browser IndexedDB database `piecs-library` stores normalized PIECS templates and favorite IDs.
+- `src/storage/templateRepository.ts` is the persistence boundary; callers validate data before writes.
+- System templates are seeded idempotently and are immutable. Users create editable copies with `cloneTemplate`.
+- Custom templates can be saved and deleted; deleting a custom template also removes its favorite marker.
+- Favorites persist across reloads. Data remains on the current browser/device; clearing site data or changing browsers may remove or isolate it.
+- `fake-indexeddb` provides a deterministic IndexedDB implementation for repository unit tests.
