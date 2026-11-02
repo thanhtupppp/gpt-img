@@ -6,6 +6,7 @@ import {
   deleteCustomTemplate,
   listFavoriteIds,
   listTemplates,
+  importCustomTemplates,
   saveCustomTemplate,
   seedSystemTemplates,
   setFavorite,
@@ -69,5 +70,26 @@ describe("template repository", () => {
 
   it("rejects malformed template data", async () => {
     await expect(saveCustomTemplate({ id: "bad" })).rejects.toBeInstanceOf(TemplateRepositoryError);
+  });
+
+  it("imports custom templates atomically and rejects collisions with existing IDs", async () => {
+    await importCustomTemplates([{ ...systemTemplate, id: "CUSTOM-EXISTING", origin: "custom" }]);
+    const incoming = [
+      { ...systemTemplate, id: "CUSTOM-NEW-1", origin: "custom" },
+      { ...systemTemplate, id: "CUSTOM-EXISTING", origin: "custom", name: "Must not overwrite" },
+    ];
+    await expect(importCustomTemplates(incoming)).rejects.toBeInstanceOf(TemplateRepositoryError);
+    const records = await listTemplates();
+    expect(records.map((item) => item.id).sort()).toEqual(["CUSTOM-EXISTING"]);
+    expect(records[0].name).toBe("System product");
+  });
+
+  it("imports a batch of valid custom templates", async () => {
+    const incoming = [
+      { ...systemTemplate, id: "CUSTOM-BATCH-1", origin: "custom" },
+      { ...systemTemplate, id: "CUSTOM-BATCH-2", origin: "custom" },
+    ];
+    await expect(importCustomTemplates(incoming)).resolves.toHaveLength(2);
+    expect((await listTemplates()).map((item) => item.id).sort()).toEqual(["CUSTOM-BATCH-1", "CUSTOM-BATCH-2"]);
   });
 });
