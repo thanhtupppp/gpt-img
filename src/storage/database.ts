@@ -19,6 +19,9 @@ export function openDatabase(): Promise<IDBDatabase> {
       if (!database.objectStoreNames.contains("favorites")) {
         database.createObjectStore("favorites", { keyPath: "id" });
       }
+      if (!database.objectStoreNames.contains("workflows")) {
+        database.createObjectStore("workflows", { keyPath: "id" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => {
