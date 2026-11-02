@@ -12,7 +12,7 @@ describe("PIECS command catalog", () => {
     for (const command of commandCatalog) {
       expect(command.name.trim()).not.toBe("");
       expect(command.description.trim()).not.toBe("");
-      expect(command.syntax).toMatch(/^\\//);
+      expect(command.syntax.startsWith("/")).toBe(true);
       expect(command.examples.length).toBeGreaterThan(0);
     }
   });
