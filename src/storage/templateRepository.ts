@@ -109,3 +109,47 @@ export async function seedSystemTemplates(templates: PiecsTemplate[]): Promise<v
   }
   await transactionComplete(transaction);
 }
+
+/**
+ * Persist an imported batch as one IndexedDB transaction.
+ * The batch is rejected before any write if an item is invalid or an ID exists.
+ */
+export async function importCustomTemplates(values: unknown[]): Promise<PiecsTemplate[]> {
+  if (!Array.isArray(values) || values.some((value) => !isPiecsTemplate(value) || value.origin !== "custom")) {
+    throw new TemplateRepositoryError("Import contains an invalid or non-custom template.");
+  }
+
+  const templates = values as PiecsTemplate[];
+  const incomingIds = new Set<string>();
+  for (const template of templates) {
+    if (incomingIds.has(template.id)) {
+      throw new TemplateRepositoryError(`Duplicate template ID in import: ${template.id}`);
+    }
+    incomingIds.add(template.id);
+  }
+
+  const database = await openDatabase();
+  const transaction = database.transaction("templates", "readwrite");
+  const completed = transactionComplete(transaction);
+  const store = transaction.objectStore("templates");
+  const existingRequest = store.getAll();
+
+  try {
+    const existing = await requestResult(existingRequest) as PiecsTemplate[];
+    const existingIds = new Set(existing.map((item) => item.id));
+    const collision = templates.find((item) => existingIds.has(item.id));
+    if (collision) {
+      transaction.abort();
+      await completed.catch(() => undefined);
+      throw new TemplateRepositoryError(`Template ID ${collision.id} already exists; nothing was imported.`);
+    }
+    for (const template of templates) store.add(template);
+    await completed;
+    return templates;
+  } catch (error) {
+    if (transaction.readyState !== "done") transaction.abort();
+    await completed.catch(() => undefined);
+    if (error instanceof TemplateRepositoryError) throw error;
+    throw new TemplateRepositoryError(error instanceof Error ? error.message : "Unable to import templates.");
+  }
+}
