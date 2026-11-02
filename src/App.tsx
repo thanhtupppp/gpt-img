@@ -27,9 +27,16 @@ export default function App(){
   const [selected,setSelected]=useState<Template|null>(null);
   const [favorites,setFavorites]=useState<string[]>([]);
   const [storageError,setStorageError]=useState("");
-  useEffect(()=>{\n    let active=true;\n    initializeTemplateLibrary(templates).then(()=>listFavoriteIds()).then(ids=>{if(active)setFavorites(ids);}).catch(()=>{if(active)setStorageError("Không thể mở bộ nhớ cục bộ. Hãy kiểm tra chế độ riêng tư hoặc quyền lưu trữ của trình duyệt.");});\n    return ()=>{active=false;};\n  },[]);
+  useEffect(()=>{
+    let active=true;
+    initializeTemplateLibrary(templates).then(()=>listFavoriteIds()).then(ids=>{if(active)setFavorites(ids);}).catch(()=>{if(active)setStorageError("Không thể mở bộ nhớ cục bộ. Hãy kiểm tra chế độ riêng tư hoặc quyền lưu trữ của trình duyệt.");});
+    return ()=>{active=false;};
+  },[]);
   const [copied,setCopied]=useState("");
-  const toggleFavorite=(id:string)=>{\n    const next=!favorites.includes(id);\n    setFavorite(id,next).then(()=>setFavorites(current=>next?[...current.filter(item=>item!==id),id]:current.filter(item=>item!==id))).catch(()=>setStorageError("Không thể lưu thay đổi yêu thích vào bộ nhớ cục bộ."));\n  };
+  const toggleFavorite=(id:string)=>{
+    const next=!favorites.includes(id);
+    setFavorite(id,next).then(()=>setFavorites(current=>next?[...current.filter(item=>item!==id),id]:current.filter(item=>item!==id))).catch(()=>setStorageError("Không thể lưu thay đổi yêu thích vào bộ nhớ cục bộ."));
+  };
   const copy=async(value:string,id:string)=>{
     try { await navigator.clipboard.writeText(value); setCopied(id); window.setTimeout(()=>setCopied(""),1400); }
     catch { setCopied("copy-error"); window.setTimeout(()=>setCopied(""),1800); }
@@ -43,7 +50,8 @@ export default function App(){
 
   return <AppShell page={page} onNavigate={next=>{setPage(next);setSelected(null);}} favoriteCount={favorites.length}>
     {selected ? <TemplateDetail template={selected} onBack={()=>setSelected(null)} onCopy={copy} copied={copied} favorite={favorites.includes(selected.id)} onFavorite={()=>toggleFavorite(selected.id)}/> :
-    <div className="space-y-7">\n      {storageError&&<div role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-xs text-rose-200">{storageError}</div>}
+    <div className="space-y-7">
+      {storageError&&<div role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-xs text-rose-200">{storageError}</div>}
       <header className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div><div className="mb-3 flex items-center gap-2 text-xs font-medium text-indigo-300"><Sparkles size={14}/> PROFESSIONAL IMAGE EDITING COMMAND SYSTEM</div><h1 className="text-3xl font-semibold tracking-tight md:text-[40px]">{pageCopy[page].title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{pageCopy[page].description}</p></div>
         {page==="Template Library"&&<button type="button" disabled title="Custom template creation is planned for P2" className="inline-flex cursor-not-allowed items-center justify-center gap-2 self-start rounded-xl bg-indigo-400/50 px-4 py-2.5 text-sm font-semibold text-[#101528]/70"><Plus size={16}/> New template <span className="text-[10px]">P2</span></button>}
