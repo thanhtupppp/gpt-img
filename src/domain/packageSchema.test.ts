@@ -2,7 +2,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 import packageSchema from "../../schemas/piecs-package-1.0.0.schema.json";
 
-const ajv = new Ajv2020({ allErrors: true, strict: true });
+const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true });
 
 ajv.addFormat("uuid", {
   type: "string",
