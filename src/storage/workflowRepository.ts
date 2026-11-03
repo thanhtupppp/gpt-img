@@ -28,6 +28,35 @@ export async function saveWorkflow(value: unknown): Promise<PiecsWorkflow> {
   return value;
 }
 
+export async function cloneWorkflow(id: string, newId: string): Promise<PiecsWorkflow> {
+  const source = await getWorkflow(id);
+  if (!source) throw new WorkflowRepositoryError("Workflow not found.");
+  if (await getWorkflow(newId)) throw new WorkflowRepositoryError("A workflow with this ID already exists.");
+
+  const now = new Date().toISOString();
+  const clone: PiecsWorkflow = {
+    ...source,
+    id: newId,
+    name: `${source.name} (Copy)`,
+    steps: source.steps.map((step, index) => ({
+      ...step,
+      id: `${newId}-step-${index + 1}`,
+      parameters: { ...step.parameters },
+    })),
+    createdAt: now,
+    updatedAt: now,
+  };
+  return saveWorkflow(clone);
+}
+
+export async function getWorkflow(id: string): Promise<PiecsWorkflow | undefined> {
+  const database = await openDatabase();
+  const transaction = database.transaction("workflows", "readonly");
+  const result = await requestResult(transaction.objectStore("workflows").get(id)) as PiecsWorkflow | undefined;
+  await transactionComplete(transaction);
+  return result;
+}
+
 export async function deleteWorkflow(id: string): Promise<void> {
   const database = await openDatabase();
   const transaction = database.transaction("workflows", "readwrite");
