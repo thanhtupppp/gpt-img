@@ -55,18 +55,18 @@ def _topological_waves(nodes: list[dict[str, Any]], edges: list[dict[str, str]])
     return waves
 
 
-def _input_for_node(node: dict[str, Any], parent_outputs: dict[str, dict[str, Any]]) -> tuple[str | None, str | None]:
+def _input_for_node(node: dict[str, Any], parent_outputs: dict[str, dict[str, Any]], workspace_id: str | None = None) -> tuple[str | None, str | None]:
     parameters = node.get("parameters") or {}
     explicit_asset = parameters.get("input_asset_id")
     if isinstance(explicit_asset, str) and explicit_asset.strip():
-        data, mime = asset_store.get_image(explicit_asset.strip())
+        data, mime = asset_store.get_image(explicit_asset.strip(), workspace_id)
         return base64.b64encode(data).decode("ascii"), mime
     explicit_parent = parameters.get("input_from")
     if isinstance(explicit_parent, str) and explicit_parent.strip():
         output = parent_outputs.get(explicit_parent.strip())
         if not output or not output.get("assetId"):
             raise ValueError("Configured input_from node has no image output.")
-        data, mime = asset_store.get_image(output["assetId"])
+        data, mime = asset_store.get_image(output["assetId"], workspace_id)
         return base64.b64encode(data).decode("ascii"), mime
     for output in parent_outputs.values():
         if output.get("assetId"):
@@ -79,12 +79,13 @@ def _execute_node(
     node: dict[str, Any],
     parent_outputs: dict[str, dict[str, Any]],
     adapter: GeminiImageAdapter,
+    workspace_id: str | None = None,
 ) -> dict[str, Any]:
     parameters = node.get("parameters") or {}
     prompt = parameters.get("prompt") or parameters.get("instruction") or node["commandId"]
     if not isinstance(prompt, str) or not prompt.strip():
         raise ValueError("Workflow node prompt must be a non-empty string.")
-    image_data, mime_type = _input_for_node(node, parent_outputs)
+    image_data, mime_type = _input_for_node(node, parent_outputs, workspace_id)
     result = adapter.generate_image(
         prompt=prompt,
         model=parameters.get("model", "gemini-nano-banana-2.1"),
@@ -99,7 +100,7 @@ def _execute_node(
     except (binascii.Error, ValueError, TypeError) as exc:
         raise ValueError("Provider returned invalid image data.") from exc
     asset_id = f"{int(time.time() * 1000)}-{os.urandom(12).hex()}"
-    asset = asset_store.put_image(asset_id, raw, image["mime_type"])
+    asset = asset_store.put_image(asset_id, raw, image["mime_type"], workspace_id)
     return {
         "assetId": asset["id"],
         "mimeType": asset["mimeType"],
@@ -127,7 +128,8 @@ def execute_claimed_execution(claim: dict[str, Any], worker_id: str, concurrency
     parent_ids = {node["id"]: [] for node in nodes}
     for edge in edges:
         parent_ids[edge["to"]].append(edge["from"])
-    adapter = GeminiImageAdapter()
+    workspace_id = claim.get("workspace_id")
+    adapter = GeminiImageAdapter(workspace_id=workspace_id)
     worker_store.persist_node_states(execution_id, worker_id, states)
     final_status = "succeeded"
     error_summary = None
@@ -144,7 +146,7 @@ def execute_claimed_execution(claim: dict[str, Any], worker_id: str, concurrency
             worker_store.persist_node_states(execution_id, worker_id, states)
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=min(concurrency, len(ready))) as pool:
-                futures = {pool.submit(_execute_node, node, parents, adapter): node for node, parents in ready}
+                futures = {pool.submit(_execute_node, node, parents, adapter, workspace_id): node for node, parents in ready}
                 failure = None
                 for future in concurrent.futures.as_completed(futures):
                     node = futures[future]
