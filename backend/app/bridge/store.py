@@ -101,7 +101,7 @@ def submit_execution(graph_id: str, payload: dict[str, Any], idempotency_key: st
             (execution_id, graph_id, serialized, idempotency_key),
         )
         row = connection.execute(
-            "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE id = ?",
+            "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE id = ? AND workspace_id IS NULL",
             (execution_id,),
         ).fetchone()
     return _execution_row(row)
