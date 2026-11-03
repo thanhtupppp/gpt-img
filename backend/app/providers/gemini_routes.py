@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .security import require_admin
 from .gemini import (
     DEFAULT_IMAGE_MODEL,
     SUPPORTED_ASPECT_RATIOS,
@@ -10,7 +11,11 @@ from .gemini import (
     GeminiImageAdapter,
 )
 
-router = APIRouter(prefix="/api/v1/providers/gemini", tags=["gemini"])
+router = APIRouter(
+    prefix="/api/v1/providers/gemini",
+    tags=["gemini"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 class ImageGenerationInput(BaseModel):
