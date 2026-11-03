@@ -41,6 +41,7 @@ def initialize_worker_schema() -> None:
             "finished_at": "TEXT",
             "cancel_requested": "INTEGER NOT NULL DEFAULT 0",
             "error_summary": "TEXT",
+            "workspace_id": "TEXT",
         }
         db.execute("BEGIN IMMEDIATE")
         try:
@@ -82,7 +83,7 @@ def claim_next_execution(worker_id: str, lease_seconds: int = 90) -> dict[str, A
                     (json.dumps(states, separators=(",", ":")), _iso(now), _iso(now), row["id"]),
                 )
             row = db.execute(
-                "SELECT id, graph_id, payload, attempts FROM bridge_executions WHERE status='queued' ORDER BY created_at, id LIMIT 1"
+                "SELECT id, graph_id, payload, attempts, workspace_id FROM bridge_executions WHERE status='queued' ORDER BY created_at, id LIMIT 1"
             ).fetchone()
             if row is None:
                 db.execute("COMMIT")
@@ -103,6 +104,7 @@ def claim_next_execution(worker_id: str, lease_seconds: int = 90) -> dict[str, A
                 "payload": json.loads(row["payload"]),
                 "attempt": row["attempts"] + 1,
                 "worker_id": worker_id,
+                "workspace_id": row["workspace_id"],
             }
         except Exception:
             if db.in_transaction:
