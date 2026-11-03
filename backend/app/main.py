@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .bridge.routes import router as bridge_router
 from .config import get_settings
 from .providers.routes import router as providers_router
 from .providers.gemini_routes import router as gemini_router
@@ -27,6 +28,7 @@ app.add_middleware(
 
 app.include_router(providers_router)
 app.include_router(gemini_router)
+app.include_router(bridge_router)
 
 
 @app.middleware("http")
