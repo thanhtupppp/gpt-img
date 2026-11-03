@@ -37,7 +37,8 @@ def test_bridge_token_is_independent_from_admin_token(monkeypatch):
     assert response.status_code == 401
 
 
-def test_bridge_capabilities_report_only_implemented_features(monkeypatch):
+def test_bridge_capabilities_report_only_implemented_features(monkeypatch, tmp_path):
+    configure_bridge(monkeypatch, tmp_path)
     monkeypatch.setattr(security, "get_settings", lambda: SimpleNamespace(bridge_token="bridge-secret"))
     response = client.get("/api/v1/bridge/capabilities", headers=AUTH)
     assert response.status_code == 200
