@@ -27,6 +27,7 @@ app.add_middleware(
 @app.middleware("http")
 async def attach_request_id(request: Request, call_next):
     request_id = str(uuid4())
+    request.state.request_id = request_id
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
     return response
@@ -34,13 +35,38 @@ async def attach_request_id(request: Request, call_next):
 
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
+    # Do not return Pydantic's raw "input" or "ctx" fields: they may contain secrets.
+    details = [
+        {
+            "location": list(error.get("loc", ())),
+            "message": error.get("msg", "Invalid value."),
+            "type": error.get("type", "value_error"),
+        }
+        for error in exc.errors()
+    ]
     return JSONResponse(
         status_code=422,
+        headers={"X-Request-ID": getattr(request.state, "request_id", str(uuid4()))},
         content={
             "error": {
                 "code": "VALIDATION_ERROR",
                 "message": "The request payload is invalid.",
-                "details": exc.errors(),
+                "details": details,
+            }
+        },
+    )
+
+
+@app.exception_handler(Exception)
+async def unexpected_error_handler(request: Request, exc: Exception):
+    # Never serialize exception text or stack traces into public API responses.
+    return JSONResponse(
+        status_code=500,
+        headers={"X-Request-ID": getattr(request.state, "request_id", str(uuid4()))},
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An unexpected error occurred.",
             }
         },
     )
