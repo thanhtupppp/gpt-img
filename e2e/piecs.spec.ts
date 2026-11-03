@@ -54,18 +54,24 @@ test("workflow can be edited, cloned, and deleted without losing the saved copy"
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByRole("button", { name: "Save workflow" }).click();
 
-  const savedRow = page.getByRole("listitem").filter({ hasText: "Lifecycle Workflow" });
+  const savedRow = page.getByRole("listitem").filter({
+    has: page.getByText("Lifecycle Workflow", { exact: true }),
+  });
   await expect(savedRow).toBeVisible();
   await savedRow.getByRole("button").first().click();
   await expect(page.getByRole("heading", { name: "Edit workflow" })).toBeVisible();
   await page.getByLabel("Workflow name").fill("Lifecycle Workflow Edited");
   await page.getByRole("button", { name: "Save workflow" }).click();
 
-  const editedRow = page.getByRole("listitem").filter({ hasText: "Lifecycle Workflow Edited" }).first();
+  const editedRow = page.getByRole("listitem").filter({
+    has: page.getByText("Lifecycle Workflow Edited", { exact: true }),
+  });
   await expect(editedRow).toBeVisible();
   await editedRow.getByRole("button", { name: "Duplicate Lifecycle Workflow Edited", exact: true }).click();
 
-  const copyRow = page.getByRole("listitem").filter({ hasText: "Lifecycle Workflow Edited (Copy)" });
+  const copyRow = page.getByRole("listitem").filter({
+    has: page.getByText("Lifecycle Workflow Edited (Copy)", { exact: true }),
+  });
   await expect(copyRow).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
