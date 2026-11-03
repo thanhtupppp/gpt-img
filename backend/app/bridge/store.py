@@ -67,7 +67,7 @@ def get_package(package_id: str) -> dict[str, Any] | None:
     initialize_bridge_store()
     with closing(_connect()) as connection:
         row = connection.execute(
-            "SELECT id, format, package_version, payload, created_at FROM bridge_packages WHERE id = ?",
+            "SELECT id, format, package_version, payload, created_at FROM bridge_packages WHERE id = ? AND workspace_id IS NULL",
             (package_id,),
         ).fetchone()
     if row is None:
