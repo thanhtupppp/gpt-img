@@ -138,7 +138,7 @@ test("JSON Studio refuses to import workflow IDs that already exist", async ({ p
 
 test("Image Studio is accessible and validates a prompt before generation", async ({ page }) => {
   await page.getByRole("button", { name: "Image Studio", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Image Studio" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Image Studio", level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: "Tạo ảnh" })).toBeDisabled();
   await page.getByLabel("Prompt").fill("A premium product photo on a clean studio background");
   await expect(page.getByRole("button", { name: "Tạo ảnh" })).toBeEnabled();
