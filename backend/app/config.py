@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     asset_s3_access_key: str = ""
     asset_s3_secret_key: str = ""
     worker_max_concurrency: int = 4
+    oidc_issuer: str = ""
+    oidc_audience: str = ""
+    oidc_jwks_url: str = ""
+    oidc_algorithms: str = "RS256"
 
     @property
     def allowed_origins(self) -> list[str]:
