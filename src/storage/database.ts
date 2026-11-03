@@ -1,5 +1,5 @@
 const DATABASE_NAME = "piecs-library";
-const DATABASE_VERSION = 4;
+const DATABASE_VERSION = 5;
 
 let databasePromise: Promise<IDBDatabase> | undefined;
 
@@ -13,23 +13,21 @@ export function openDatabase(): Promise<IDBDatabase> {
     const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
     request.onupgradeneeded = () => {
       const database = request.result;
-      if (!database.objectStoreNames.contains("templates")) {
-        database.createObjectStore("templates", { keyPath: "id" });
-      }
-      if (!database.objectStoreNames.contains("favorites")) {
-        database.createObjectStore("favorites", { keyPath: "id" });
-      }
-      if (!database.objectStoreNames.contains("workflows")) {
-        database.createObjectStore("workflows", { keyPath: "id" });
-      }
-      if (!database.objectStoreNames.contains("engineJobs")) {
-        database.createObjectStore("engineJobs", { keyPath: "id" });
-      }
-      if (!database.objectStoreNames.contains("graphExecutions")) {
-        database.createObjectStore("graphExecutions", { keyPath: "graphId" });
-      }
+      if (!database.objectStoreNames.contains("templates")) database.createObjectStore("templates", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("favorites")) database.createObjectStore("favorites", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("workflows")) database.createObjectStore("workflows", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("engineJobs")) database.createObjectStore("engineJobs", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("graphExecutions")) database.createObjectStore("graphExecutions", { keyPath: "graphId" });
+      if (!database.objectStoreNames.contains("assets")) database.createObjectStore("assets", { keyPath: "id" });
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const database = request.result;
+      database.onversionchange = () => {
+        database.close();
+        databasePromise = undefined;
+      };
+      resolve(database);
+    };
     request.onerror = () => {
       databasePromise = undefined;
       reject(request.error ?? new Error("Unable to open PIECS database."));
