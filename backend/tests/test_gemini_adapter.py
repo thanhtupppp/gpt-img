@@ -31,7 +31,7 @@ def test_gemini_connection_success(configured_gateway, monkeypatch):
         assert request.headers["x-goog-api-key"] == "test-gemini-api-key-123"
         return httpx.Response(200, json={"name": "models/gemini-nano-banana-2.1"})
     client = httpx.Client(transport=httpx.MockTransport(handler))
-    monkeypatch.setattr("app.providers.gemini.GeminiImageAdapter", lambda: GeminiImageAdapter(client))
+    monkeypatch.setattr("app.providers.gemini_routes.GeminiImageAdapter", lambda: GeminiImageAdapter(client))
     response = configured_gateway.post(
         "/api/v1/providers/gemini/test",
         headers={"Authorization": "Bearer test-admin-token"},
