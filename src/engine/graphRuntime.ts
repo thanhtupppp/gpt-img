@@ -1,6 +1,7 @@
 import type { WorkflowStep } from "../domain/types";
 import type { WorkflowGraph } from "./workflowGraph";
 import type { WorkflowImage } from "./geminiImageExecution";
+import { createAsset } from "../storage/assetRepository";
 
 export type GraphNodeStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled" | "blocked" | "interrupted";
 
@@ -11,6 +12,7 @@ export interface GraphNodeRecord {
   finishedAt?: string;
   message?: string;
   error?: string;
+  assetId?: string;
 }
 
 export interface GraphExecutionSnapshot {
@@ -58,6 +60,13 @@ export interface GraphExecutionOptions {
 }
 
 const timestamp = () => new Date().toISOString();
+
+function imageToBlob(image: WorkflowImage): Blob {
+  const binary = atob(image.data);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: image.mimeType });
+}
 const cloneSnapshot = (snapshot: GraphExecutionSnapshot): GraphExecutionSnapshot => ({
   ...snapshot,
   nodes: snapshot.nodes.map((node) => ({ ...node })),
@@ -158,6 +167,17 @@ export async function executeWorkflowGraph(
               attempt: options.attempt ?? 1,
               inputs,
             }, controller.signal);
+            if (output.image) {
+              const asset = await createAsset({
+                name: `${step.commandId} - ${step.id}`,
+                blob: imageToBlob(output.image),
+                source: "workflow",
+                graphId: snapshot.graphId,
+                nodeId: step.id,
+              });
+              record.assetId = asset.id;
+              output.metadata = { ...output.metadata, assetId: asset.id };
+            }
             outputs.set(step.id, output);
             record.status = "succeeded";
             record.message = output.message;
