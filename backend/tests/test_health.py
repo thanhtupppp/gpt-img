@@ -16,6 +16,13 @@ def test_health_endpoint_returns_service_metadata():
     }
 
 
+def test_versioned_health_endpoint_is_available():
+    response = client.get("/api/v1/healthz")
+
+    assert response.status_code == 200
+    assert response.json()["api_version"] == "v1"
+
+
 def test_health_response_includes_server_generated_request_id():
     response = client.get("/healthz", headers={"X-Request-ID": "attacker-controlled-value"})
 
@@ -24,7 +31,7 @@ def test_health_response_includes_server_generated_request_id():
     assert len(response.headers["X-Request-ID"]) == 36
 
 
-def test_validation_errors_use_stable_error_envelope():
+def test_unsupported_method_returns_method_not_allowed():
     response = client.post("/healthz", json={"unexpected": True})
 
     assert response.status_code == 405
