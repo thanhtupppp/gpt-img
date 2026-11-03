@@ -50,6 +50,9 @@ describe("hybrid workflow graph runtime", () => {
       id: "parallel",
       name: "Parallel adapter",
       async executeStep(step) {
+        // The root is a separate dependency wave; only sibling branches
+        // should participate in the concurrency barrier.
+        if (step.id === "root") return { message: step.id };
         active += 1;
         peak = Math.max(peak, active);
         if (active >= 2) releaseBarrier();
