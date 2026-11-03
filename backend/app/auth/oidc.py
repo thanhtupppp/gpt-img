@@ -106,7 +106,7 @@ def require_user(
 ) -> Principal:
     principal = _decode_principal(_extract_bearer(authorization))
     identity = f"{principal.issuer}|{principal.subject}"
-    enforce_rate_limit(identity, category="oidc-user")
     request.state.audit_actor_type = "oidc_user"
     request.state.audit_actor_identity = identity
+    enforce_rate_limit(identity, category="oidc-user")
     return principal
