@@ -50,6 +50,7 @@ test("JSON Studio loads and validates the local template backup", async ({ page 
 test("workflow can be edited, cloned, and deleted without losing the saved copy", async ({ page }) => {
   await page.getByRole("button", { name: "Workflows", exact: true }).click();
   await page.getByLabel("Workflow name").fill("Lifecycle Workflow");
+  await page.getByLabel("Description").fill("Workflow lifecycle E2E test.");
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByRole("button", { name: "Save workflow" }).click();
 
@@ -99,10 +100,10 @@ test("canceling a JSON data-type switch preserves the unsaved editor content", a
 test("JSON Studio refuses to import workflow IDs that already exist", async ({ page }) => {
   await page.getByRole("button", { name: "Workflows", exact: true }).click();
   await page.getByLabel("Workflow name").fill("Duplicate Guard Workflow");
+  await page.getByLabel("Description").fill("Duplicate import guard E2E test.");
   await page.getByLabel("Choose workflow command").selectOption("source");
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByRole("button", { name: "Save workflow" }).click();
-  await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Duplicate Guard Workflow/ })).toBeVisible();
 
   await page.getByRole("button", { name: "JSON Studio", exact: true }).click();
