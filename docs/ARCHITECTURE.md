@@ -56,3 +56,13 @@ The existing MVP data and UI remain in place during the foundation stage to redu
 - The library view reads from IndexedDB and exposes custom-template edit/delete actions with a confirmation prompt.
 - JSON export includes custom templates only. Import validates schema, origin, and duplicate IDs; existing records are never silently overwritten.
 - Import/export is a manual local backup/transfer path, not cloud synchronization.
+
+
+## P7 optional AI Workflow Engine foundation
+
+- The Engine is a separate feature boundary; Prompt Studio remains usable without it.
+- P7 adds a local job model, persisted queue/history, sequential step runner, retry and cancellation states, and an adapter interface.
+- The bundled Demo Adapter is deterministic and local-only. It does not call a provider, upload assets, generate images, or require credentials.
+- Engine jobs store a workflow snapshot so later edits to the source workflow do not rewrite an existing run.
+- Engine job persistence is added through IndexedDB database version 3; the upgrade creates the `engineJobs` store without deleting existing stores or records.
+- Provider credentials, provider selection, real image inputs/outputs, network execution, and generation adapters remain P8 scope.
