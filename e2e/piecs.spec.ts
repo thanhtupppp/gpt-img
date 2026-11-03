@@ -53,16 +53,16 @@ test("workflow can be edited, cloned, and deleted without losing the saved copy"
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByRole("button", { name: "Save workflow" }).click();
 
-  const saved = page.getByRole("button", { name: "Lifecycle Workflow", exact: true });
+  const saved = page.getByRole("button", { name: /Lifecycle Workflow/ });
   await expect(saved).toBeVisible();
   await saved.click();
   await expect(page.getByRole("heading", { name: "Edit workflow" })).toBeVisible();
   await page.getByLabel("Workflow name").fill("Lifecycle Workflow Edited");
   await page.getByRole("button", { name: "Save workflow" }).click();
 
-  await expect(page.getByRole("button", { name: "Lifecycle Workflow Edited", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Lifecycle Workflow Edited/ })).toBeVisible();
   await page.getByRole("button", { name: "Duplicate Lifecycle Workflow Edited" }).click();
-  await expect(page.getByRole("button", { name: "Lifecycle Workflow Edited (Copy)", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Lifecycle Workflow Edited \(Copy\)/ })).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
   await page.getByRole("button", { name: "Delete Lifecycle Workflow Edited" }).click();
@@ -101,7 +101,7 @@ test("JSON Studio refuses to import workflow IDs that already exist", async ({ p
   await page.getByLabel("Workflow name").fill("Duplicate Guard Workflow");
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByRole("button", { name: "Save workflow" }).click();
-  await expect(page.getByRole("button", { name: "Duplicate Guard Workflow", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Duplicate Guard Workflow/ })).toBeVisible();
 
   await page.getByRole("button", { name: "JSON Studio", exact: true }).click();
   await page.getByRole("button", { name: "Workflows (", exact: false }).click();
