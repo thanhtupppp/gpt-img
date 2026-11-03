@@ -25,7 +25,8 @@ def initialize_bridge_store() -> None:
                 format TEXT NOT NULL,
                 package_version TEXT NOT NULL,
                 payload TEXT NOT NULL,
-                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                workspace_id TEXT
             )
         """)
         connection.execute("""
@@ -36,9 +37,18 @@ def initialize_bridge_store() -> None:
                 payload TEXT NOT NULL,
                 idempotency_key TEXT UNIQUE,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                workspace_id TEXT
             )
         """)
+        package_columns = {row[1] for row in connection.execute("PRAGMA table_info(bridge_packages)")}
+        execution_columns = {row[1] for row in connection.execute("PRAGMA table_info(bridge_executions)")}
+        if "workspace_id" not in package_columns:
+            connection.execute("ALTER TABLE bridge_packages ADD COLUMN workspace_id TEXT")
+        if "workspace_id" not in execution_columns:
+            connection.execute("ALTER TABLE bridge_executions ADD COLUMN workspace_id TEXT")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_bridge_packages_workspace ON bridge_packages(workspace_id, created_at)")
+        connection.execute("CREATE INDEX IF NOT EXISTS idx_bridge_executions_workspace ON bridge_executions(workspace_id, created_at)")
 
 
 def save_package(payload: dict[str, Any]) -> dict[str, Any]:
@@ -57,7 +67,7 @@ def get_package(package_id: str) -> dict[str, Any] | None:
     initialize_bridge_store()
     with closing(_connect()) as connection:
         row = connection.execute(
-            "SELECT id, format, package_version, payload, created_at FROM bridge_packages WHERE id = ?",
+            "SELECT id, format, package_version, payload, created_at FROM bridge_packages WHERE id = ? AND workspace_id IS NULL",
             (package_id,),
         ).fetchone()
     if row is None:
@@ -91,7 +101,7 @@ def submit_execution(graph_id: str, payload: dict[str, Any], idempotency_key: st
             (execution_id, graph_id, serialized, idempotency_key),
         )
         row = connection.execute(
-            "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE id = ?",
+            "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE id = ? AND workspace_id IS NULL",
             (execution_id,),
         ).fetchone()
     return _execution_row(row)
@@ -115,3 +125,65 @@ def _execution_row(row: sqlite3.Row) -> dict[str, Any]:
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
     }
+
+
+def save_workspace_package(workspace_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    initialize_bridge_store()
+    package_id = str(uuid4())
+    serialized = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+    with closing(_connect()) as connection, connection:
+        connection.execute(
+            "INSERT INTO bridge_packages (id, format, package_version, payload, workspace_id) VALUES (?, ?, ?, ?, ?)",
+            (package_id, payload["format"], payload["packageVersion"], serialized, workspace_id),
+        )
+    return {"id": package_id, "format": payload["format"], "packageVersion": payload["packageVersion"]}
+
+
+def get_workspace_package(workspace_id: str, package_id: str) -> dict[str, Any] | None:
+    initialize_bridge_store()
+    with closing(_connect()) as connection:
+        row = connection.execute(
+            "SELECT id, format, package_version, payload, created_at FROM bridge_packages WHERE id=? AND workspace_id=?",
+            (package_id, workspace_id),
+        ).fetchone()
+    if row is None:
+        return None
+    return {"id": row["id"], "format": row["format"], "packageVersion": row["package_version"],
+            "createdAt": row["created_at"], "package": json.loads(row["payload"])}
+
+
+def submit_workspace_execution(workspace_id: str, graph_id: str, payload: dict[str, Any],
+                               idempotency_key: str | None) -> dict[str, Any]:
+    initialize_bridge_store()
+    serialized = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+    scoped_key = f"{workspace_id}:{idempotency_key}" if idempotency_key else None
+    with closing(_connect()) as connection, connection:
+        if scoped_key:
+            existing = connection.execute(
+                "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE idempotency_key=? AND workspace_id=?",
+                (scoped_key, workspace_id),
+            ).fetchone()
+            if existing:
+                if existing["graph_id"] != graph_id:
+                    raise ValueError("Idempotency key was already used for a different graph.")
+                return _execution_row(existing)
+        execution_id = str(uuid4())
+        connection.execute(
+            "INSERT INTO bridge_executions (id,graph_id,status,payload,idempotency_key,workspace_id) VALUES (?,?,'queued',?,?,?)",
+            (execution_id, graph_id, serialized, scoped_key, workspace_id),
+        )
+        row = connection.execute(
+            "SELECT id,graph_id,status,created_at,updated_at FROM bridge_executions WHERE id=? AND workspace_id=?",
+            (execution_id, workspace_id),
+        ).fetchone()
+    return _execution_row(row)
+
+
+def get_workspace_execution(workspace_id: str, execution_id: str) -> dict[str, Any] | None:
+    initialize_bridge_store()
+    with closing(_connect()) as connection:
+        row = connection.execute(
+            "SELECT id,graph_id,status,created_at,updated_at FROM bridge_executions WHERE id=? AND workspace_id=?",
+            (execution_id, workspace_id),
+        ).fetchone()
+    return _execution_row(row) if row else None

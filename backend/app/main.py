@@ -10,6 +10,8 @@ from .bridge.routes import router as bridge_router
 from .config import get_settings
 from .providers.routes import router as providers_router
 from .providers.gemini_routes import router as gemini_router
+from .tenancy.routes import router as workspaces_router
+from .tenancy.resource_routes import router as workspace_resources_router
 
 settings = get_settings()
 app = FastAPI(
@@ -23,11 +25,13 @@ app.add_middleware(
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
     expose_headers=["X-Request-ID"],
 )
 
 app.include_router(auth_router)
+app.include_router(workspaces_router)
+app.include_router(workspace_resources_router)
 app.include_router(providers_router)
 app.include_router(gemini_router)
 app.include_router(bridge_router)
