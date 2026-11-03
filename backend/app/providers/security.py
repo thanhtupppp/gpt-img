@@ -1,11 +1,12 @@
 import secrets
 
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Request, status
 
 from ..config import get_settings
+from ..security_controls import enforce_rate_limit
 
 
-def require_admin(authorization: str | None = Header(default=None)) -> None:
+def require_admin(request: Request, authorization: str | None = Header(default=None)) -> None:
     expected = get_settings().admin_token
     if not expected:
         raise HTTPException(
@@ -24,3 +25,7 @@ def require_admin(authorization: str | None = Header(default=None)) -> None:
             detail={"code": "UNAUTHORIZED", "message": "Valid bearer authentication is required."},
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    request.state.audit_actor_type = "admin_service"
+    request.state.audit_actor_identity = expected
+    enforce_rate_limit(expected, category="admin-service")

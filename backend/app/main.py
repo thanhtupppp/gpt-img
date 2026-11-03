@@ -10,6 +10,7 @@ from .bridge.routes import router as bridge_router
 from .config import get_settings
 from .providers.routes import router as providers_router
 from .providers.gemini_routes import router as gemini_router
+from .security_controls import audit_request_middleware, router as audit_router
 from .tenancy.routes import router as workspaces_router
 from .tenancy.resource_routes import router as workspace_resources_router
 
@@ -35,13 +36,14 @@ app.include_router(workspace_resources_router)
 app.include_router(providers_router)
 app.include_router(gemini_router)
 app.include_router(bridge_router)
+app.include_router(audit_router)
 
 
 @app.middleware("http")
 async def attach_request_id(request: Request, call_next):
     request_id = str(uuid4())
     request.state.request_id = request_id
-    response = await call_next(request)
+    response = await audit_request_middleware(request, call_next)
     response.headers["X-Request-ID"] = request_id
     return response
 

@@ -5,11 +5,12 @@ from functools import lru_cache
 from typing import Any
 
 import jwt
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Request, status
 from jwt import PyJWKClient
 from jwt.exceptions import PyJWTError
 
 from ..config import get_settings
+from ..security_controls import enforce_rate_limit
 
 _ALLOWED_ALGORITHMS = {"RS256", "RS384", "ES256", "ES384"}
 
@@ -99,5 +100,13 @@ def _decode_principal(token: str) -> Principal:
     return Principal(subject=subject, issuer=issuer, audiences=audiences, scopes=scopes)
 
 
-def require_user(authorization: str | None = Header(default=None)) -> Principal:
-    return _decode_principal(_extract_bearer(authorization))
+def require_user(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> Principal:
+    principal = _decode_principal(_extract_bearer(authorization))
+    identity = f"{principal.issuer}|{principal.subject}"
+    request.state.audit_actor_type = "oidc_user"
+    request.state.audit_actor_identity = identity
+    enforce_rate_limit(identity, category="oidc-user")
+    return principal
