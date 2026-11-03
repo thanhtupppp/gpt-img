@@ -1,17 +1,24 @@
-from cryptography.fernet import Fernet
+import pytest
 from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.main import app
 
 
-def test_gemini_image_route_rejects_unknown_fields():
+@pytest.fixture
+def client(monkeypatch, tmp_path):
     settings = get_settings()
-    from app.providers.vault import store_credential
-    settings.admin_token = "test-admin-token"
-    settings.secret_encryption_key = Fernet.generate_key().decode("ascii")
-    settings.database_path = ":memory:"
-    client = TestClient(app)
+    monkeypatch.setattr(settings, "admin_token", "test-admin-token")
+    monkeypatch.setattr(settings, "database_path", str(tmp_path / "gateway.sqlite3"))
+    return TestClient(app)
+
+
+def test_gemini_image_route_requires_admin(client):
+    response = client.post("/api/v1/providers/gemini/images", json={"prompt": "hello"})
+    assert response.status_code == 401
+
+
+def test_gemini_image_route_rejects_unknown_fields(client):
     response = client.post(
         "/api/v1/providers/gemini/images",
         headers={"Authorization": "Bearer test-admin-token"},
@@ -21,10 +28,7 @@ def test_gemini_image_route_rejects_unknown_fields():
     assert "should-not-be-accepted" not in response.text
 
 
-def test_gemini_image_route_rejects_unsupported_model():
-    settings = get_settings()
-    settings.admin_token = "test-admin-token"
-    client = TestClient(app)
+def test_gemini_image_route_rejects_unsupported_model(client):
     response = client.post(
         "/api/v1/providers/gemini/images",
         headers={"Authorization": "Bearer test-admin-token"},
