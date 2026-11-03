@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     service_name: str = "piecs-gateway"
     api_version: str = "v1"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    admin_token: str = ""
+    secret_encryption_key: str = ""
+    database_path: str = "data/piecs-gateway.sqlite3"
 
     @property
     def allowed_origins(self) -> list[str]:

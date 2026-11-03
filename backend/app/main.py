@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import get_settings
+from .providers.routes import router as providers_router
 
 settings = get_settings()
 app = FastAPI(
@@ -22,6 +23,8 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     expose_headers=["X-Request-ID"],
 )
+
+app.include_router(providers_router)
 
 
 @app.middleware("http")

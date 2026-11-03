@@ -95,3 +95,40 @@ No provider SDK, provider manager, API-key vault, image upload, image generation
 - Production configuration rejects wildcard CORS.
 - Python tests run in GitHub Actions alongside existing frontend checks.
 - Existing Prompt Studio, IndexedDB, and local Demo Adapter behavior remain unchanged.
+
+
+## PR #18 — Provider Manager and Secret Vault
+
+### Provider catalog and management
+
+Authenticated provider-management routes:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/v1/providers` | List supported provider metadata and credential-configured status |
+| PUT | `/api/v1/providers/{provider_id}/credentials` | Create or rotate a provider API key |
+| DELETE | `/api/v1/providers/{provider_id}/credentials` | Remove a provider API key |
+
+The initial catalog contains `gemini`, `openai`, and `anthropic`. Provider metadata is allowlisted in code; callers cannot register arbitrary provider endpoints in this phase.
+
+### Authentication and encryption configuration
+
+Provider-management routes require `Authorization: Bearer <token>`. Configure:
+
+- `PIECS_ADMIN_TOKEN`: high-entropy management token. If unset, management routes fail closed with HTTP 503; invalid or missing credentials receive HTTP 401.
+- `PIECS_SECRET_ENCRYPTION_KEY`: Fernet key used for authenticated encryption at rest. Generate a key with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+- `PIECS_DATABASE_PATH`: SQLite database path (default `data/piecs-gateway.sqlite3`).
+
+Keep both token and encryption key in deployment secrets or a KMS-backed secret manager. Never commit them, expose them through frontend `VITE_*` variables, or reuse the same value for both. Back up the encryption key separately from the database; losing it makes stored credentials unrecoverable. Restrict filesystem permissions on the SQLite database and its parent directory.
+
+### Secret handling guarantees
+
+- API keys are encrypted with Fernet before persistence.
+- HTTP responses expose only `credential_configured`; they never return secret values.
+- Credential input rejects unknown fields and validation errors do not echo raw input.
+- Secret decryption is an internal-only function intended for trusted provider adapters; it is not an HTTP endpoint.
+- Admin bearer authentication is a bootstrap management boundary, not a multi-user identity/tenant system. Deploy behind TLS and restrict access at the network/ingress layer.
+
+### Explicit boundary for PR #19
+
+The provider adapter and real upstream connection test are not implemented in PR #18. A successful credential write means only that the key was encrypted and stored; it does not assert that the key is valid or that the provider is reachable. PR #19 will add provider-specific adapters and an actual credential connection test. Do not report a provider as connected based only on `credential_configured`.
