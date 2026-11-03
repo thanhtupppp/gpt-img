@@ -7,7 +7,7 @@ export interface WorkflowBuilderStep extends WorkflowStep {
 export function buildWorkflowPrompt(steps: WorkflowBuilderStep[]): string {
   return steps
     .map((step) => {
-      const command = step.commandId.trim().replace(/^\/+/, "");
+      const command = step.commandId.trim().replace(/^\\/+/, "");
       if (!command) return "";
       const args = step.argumentsText.trim();
       return args ? `/${command} ${args}` : `/${command}`;
@@ -29,8 +29,9 @@ export function validateWorkflowCommandIds(
   knownCommandIds: ReadonlySet<string>,
 ): string[] {
   return steps.flatMap((step, index) => {
-    if (!step.commandId.trim()) return [`Step ${index + 1}: command is required.`];
-    if (!knownCommandIds.has(step.commandId)) return [`Step ${index + 1}: unknown command "${step.commandId}".`];
+    const commandId = step.commandId.trim().replace(/^\\/+/, "");
+    if (!commandId) return [`Step ${index + 1}: command is required.`];
+    if (!knownCommandIds.has(commandId)) return [`Step ${index + 1}: unknown command "${step.commandId}".`];
     return [];
   });
 }
