@@ -1,6 +1,5 @@
 import {
   PIECS_SCHEMA_VERSION,
-  type ParameterDefinition,
   type PiecsTemplate,
   type PiecsWorkflow,
 } from "../domain/types";
