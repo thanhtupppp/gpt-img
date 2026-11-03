@@ -1,5 +1,6 @@
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -17,7 +18,7 @@ def _connect() -> sqlite3.Connection:
 
 
 def initialize_bridge_store() -> None:
-    with _connect() as connection:
+    with closing(_connect()) as connection, connection:
         connection.execute("""
             CREATE TABLE IF NOT EXISTS bridge_packages (
                 id TEXT PRIMARY KEY,
@@ -44,7 +45,7 @@ def save_package(payload: dict[str, Any]) -> dict[str, Any]:
     initialize_bridge_store()
     package_id = str(uuid4())
     serialized = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-    with _connect() as connection:
+    with closing(_connect()) as connection, connection:
         connection.execute(
             "INSERT INTO bridge_packages (id, format, package_version, payload) VALUES (?, ?, ?, ?)",
             (package_id, payload["format"], payload["packageVersion"], serialized),
@@ -54,7 +55,7 @@ def save_package(payload: dict[str, Any]) -> dict[str, Any]:
 
 def get_package(package_id: str) -> dict[str, Any] | None:
     initialize_bridge_store()
-    with _connect() as connection:
+    with closing(_connect()) as connection:
         row = connection.execute(
             "SELECT id, format, package_version, payload, created_at FROM bridge_packages WHERE id = ?",
             (package_id,),
@@ -73,7 +74,7 @@ def get_package(package_id: str) -> dict[str, Any] | None:
 def submit_execution(graph_id: str, payload: dict[str, Any], idempotency_key: str | None) -> dict[str, Any]:
     initialize_bridge_store()
     serialized = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-    with _connect() as connection:
+    with closing(_connect()) as connection:
         if idempotency_key:
             existing = connection.execute(
                 "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE idempotency_key = ?",
@@ -98,7 +99,7 @@ def submit_execution(graph_id: str, payload: dict[str, Any], idempotency_key: st
 
 def get_execution(execution_id: str) -> dict[str, Any] | None:
     initialize_bridge_store()
-    with _connect() as connection:
+    with closing(_connect()) as connection:
         row = connection.execute(
             "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE id = ?",
             (execution_id,),
