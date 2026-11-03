@@ -7,8 +7,6 @@ from contextlib import closing
 from datetime import datetime, timezone
 from typing import Any
 
-from fastapi import HTTPException
-
 from ..bridge.store import _connect, initialize_bridge_store
 from .store import initialize_tenancy
 
