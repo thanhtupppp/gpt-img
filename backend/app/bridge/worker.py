@@ -204,6 +204,7 @@ def run_worker(poll_seconds: float = 2.0, lease_seconds: int = 90) -> None:
     settings = get_settings()
     logger.info("PIECS workflow worker started (%s).", worker_id)
     while True:
+        worker_store.heartbeat_worker(worker_id)
         claim = worker_store.claim_next_execution(worker_id, lease_seconds)
         if claim is None:
             time.sleep(poll_seconds)
