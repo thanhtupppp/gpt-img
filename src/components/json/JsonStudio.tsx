@@ -117,6 +117,44 @@ export function JsonStudio({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
     setMessage(`Đã đọc ${file.name}. Hãy kiểm tra JSON trước khi nhập.`);
   };
 
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    const guard = (event: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [dirty]);
+
+  const changeKind = (next: DataKind) => {
+    if (next === kind) return;
+    if (dirty && !window.confirm("Bạn có nội dung chưa lưu. Chuyển loại dữ liệu và bỏ nội dung hiện tại?")) return;
+    setKind(next);
+    setSource("");
+    setBaseline("");
+    setIssues([]);
+    setMessage("");
+    setError("");
+    setShowPreview(false);
+  };
+
+  const formatJson = () => {
+    try {
+      setSource(JSON.stringify(JSON.parse(source), null, 2));
+      setIssues([]);
+      setError("");
+      setMessage("Đã định dạng JSON.");
+    } catch {
+      setIssues(["Không thể format: cú pháp JSON đang không hợp lệ."]);
+    }
+  };
+
   return (
     <section className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
