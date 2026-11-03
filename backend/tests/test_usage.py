@@ -244,4 +244,4 @@ def test_expired_worker_lease_settles_started_units_as_uncertain_without_replay(
     assert status["status"] == "interrupted"
     snapshot = usage.get_workspace_usage(workspace["id"])
     assert snapshot["usedUnits"] == 2
-    assert snapshot["reservedUnits"] == 1
+    assert snapshot["reservedUnits"] == 0
