@@ -12,6 +12,12 @@ describe("template transfer", () => {
   it("round-trips custom templates", () => {
     expect(parseTemplateImport(exportTemplates([fixture]))).toEqual([fixture]);
   });
+  it("rejects unknown package sources and unsupported schema versions", () => {
+    const bundle = JSON.parse(exportTemplates([fixture])) as Record<string, unknown>;
+    expect(() => parseTemplateImport(JSON.stringify({ ...bundle, system: "OTHER" }))).toThrow("PIECS");
+    expect(() => parseTemplateImport(JSON.stringify({ ...bundle, schemaVersion: "9.9.9" }))).toThrow("schema");
+    expect(() => parseTemplateImport(JSON.stringify({ templates: [fixture] }))).toThrow("PIECS");
+  });
   it("rejects malformed JSON and invalid or system records", () => {
     expect(() => parseTemplateImport("{")).toThrow("JSON");
     expect(() => parseTemplateImport(JSON.stringify({templates:[{...fixture,origin:"system"}]}))).toThrow("template cá nhân");

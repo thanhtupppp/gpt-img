@@ -18,6 +18,13 @@ describe("workflow transfer", () => {
     expect(parseWorkflowImport(exportWorkflows([workflow]))).toEqual([workflow]);
   });
 
+  it("rejects unknown package sources and unsupported schema versions", () => {
+    const bundle = JSON.parse(exportWorkflows([workflow])) as Record<string, unknown>;
+    expect(() => parseWorkflowImport(JSON.stringify({ ...bundle, system: "OTHER" }))).toThrow("PIECS");
+    expect(() => parseWorkflowImport(JSON.stringify({ ...bundle, schemaVersion: "9.9.9" }))).toThrow("schema");
+    expect(() => parseWorkflowImport(JSON.stringify({ workflows: [workflow] }))).toThrow("PIECS");
+  });
+
   it("rejects malformed JSON, invalid records, and duplicate IDs", () => {
     expect(() => parseWorkflowImport("{")).toThrow("JSON");
     expect(() => parseWorkflowImport(JSON.stringify({ workflows: [{ ...workflow, steps: [] }] }))).toThrow("không hợp lệ");
