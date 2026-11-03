@@ -45,7 +45,7 @@ describe("workflow asset integration", () => {
     expect(stored?.graphId).toBe("graph-assets-1");
     expect(stored?.nodeId).toBe("render");
     expect([...new Uint8Array(await stored!.blob.arrayBuffer())]).toEqual([1, 2, 3]);
-    expect(persisted.at(-1)?.nodes[0].assetId).toBe(node.assetId);
+    expect(persisted[persisted.length - 1]?.nodes[0].assetId).toBe(node.assetId);
     expect(JSON.stringify(persisted)).not.toContain("AQID");
     expect((await listAssets()).length).toBe(1);
   });
