@@ -16,6 +16,14 @@ ROLES = {"owner", "admin", "member", "viewer"}
 ROLE_LEVEL = {"viewer": 0, "member": 1, "admin": 2, "owner": 3}
 
 
+class OwnerProtectedError(ValueError):
+    """Raised when an operation would change or remove the workspace owner."""
+
+
+class MemberSuspendedError(ValueError):
+    """Raised when an operation would implicitly re-activate a suspended member."""
+
+
 def _connect() -> sqlite3.Connection:
     path = Path(get_settings().database_path)
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -150,9 +158,9 @@ def add_member(actor_issuer: str, actor_subject: str, workspace_id: str,
                 (workspace_id, user_id),
             ).fetchone()
             if existing is not None and existing["role"] == "owner":
-                raise ValueError("Workspace ownership cannot be changed through member management.")
+                raise OwnerProtectedError("Workspace ownership cannot be changed through member management.")
             if existing is not None and existing["status"] != "active":
-                raise ValueError("Suspended members cannot be re-activated through member management.")
+                raise MemberSuspendedError("Suspended members cannot be re-activated through member management.")
             db.execute("""
                 INSERT INTO workspace_memberships(workspace_id,user_id,role,status)
                 VALUES(?,?,?,'active')
@@ -177,7 +185,7 @@ def change_member_role(actor_issuer: str, actor_subject: str, workspace_id: str,
         if not target:
             raise LookupError("Member not found.")
         if target["role"] == "owner":
-            raise ValueError("Workspace ownership cannot be changed through member role management.")
+            raise OwnerProtectedError("Workspace ownership cannot be changed through member role management.")
         db.execute("UPDATE workspace_memberships SET role=? WHERE workspace_id=? AND user_id=?",
                    (role, workspace_id, target["id"]))
 
@@ -193,6 +201,6 @@ def remove_member(actor_issuer: str, actor_subject: str, workspace_id: str,
         if not target:
             raise LookupError("Member not found.")
         if target["role"] == "owner":
-            raise ValueError("The workspace owner cannot be removed.")
+            raise OwnerProtectedError("The workspace owner cannot be removed.")
         db.execute("DELETE FROM workspace_memberships WHERE workspace_id=? AND user_id=?",
                    (workspace_id, target["id"]))
