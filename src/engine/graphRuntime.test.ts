@@ -112,7 +112,7 @@ describe("hybrid workflow graph runtime", () => {
       id: "image",
       name: "Image adapter",
       async executeStep() {
-        return { message: "created image", image: { data: "private-image-bytes", mimeType: "image/png" } };
+        return { message: "created image", image: { data: "cHJpdmF0ZS1pbWFnZS1ieXRlcw==", mimeType: "image/png" } };
       },
     };
     const result = await executeWorkflowGraph(graph(["image"], []), adapter, {
@@ -120,7 +120,7 @@ describe("hybrid workflow graph runtime", () => {
       isCancelRequested: async () => false,
     });
     expect(result.status).toBe("succeeded");
-    expect(JSON.stringify(persisted)).not.toContain("private-image-bytes");
+    expect(JSON.stringify(persisted)).not.toContain("cHJpdmF0ZS1pbWFnZS1ieXRlcw==");
   });
 
   it("rejects invalid concurrency values", async () => {
