@@ -16,7 +16,7 @@ import {WorkflowBuilder} from "./components/workflows/WorkflowBuilder";
 import {JsonStudio} from "./components/json/JsonStudio";
 import {EngineConsole} from "./components/engine/EngineConsole";
 import {ImageStudio} from "./components/images/ImageStudio";
-import {AssetLibrary} from "./components/assets/AssetLibrary";
+import {AssetLibrary} from "./components/assets/AssetLibrary";\nimport {PromptPackageStudio} from "./components/json/PromptPackageStudio";
 
 const pageCopy:Record<AppPage,{title:string;description:string}> = {
   "Overview":{title:"Creative workspace",description:"Your PIECS workspace at a glance."},
@@ -28,7 +28,7 @@ const pageCopy:Record<AppPage,{title:string;description:string}> = {
   "Settings":{title:"Settings",description:"Thông tin và tùy chọn của PIECS Library."},
   "AI Workflow Engine":{title:"AI Workflow Engine",description:"Engine độc lập để điều phối, chạy và theo dõi workflow."},
   "Image Studio":{title:"Image Studio",description:"Tạo ảnh và chỉnh sửa ảnh qua Gemini Nano Banana."},
-  "Asset Library":{title:"Asset Library",description:"Quản lý ảnh đầu vào và ảnh đầu ra workflow được lưu cục bộ."},
+  "Asset Library":{title:"Asset Library",description:"Quản lý ảnh đầu vào và ảnh đầu ra workflow được lưu cục bộ."},\n  "Prompt Packages":{title:"Prompt Packages",description:"Sao lưu và chuyển custom templates cùng sequential workflows bằng một package JSON có version."},
 };
 
 export default function App(){
@@ -83,7 +83,7 @@ export default function App(){
       page==="Workflows" ? <WorkflowBuilder copied={copied} onCopy={copy}/> :
       page==="AI Workflow Engine" ? <EngineConsole/> :
       page==="Image Studio" ? <ImageStudio/> :
-      page==="Asset Library" ? <AssetLibrary/> :
+      page==="Asset Library" ? <AssetLibrary/> :\n      page==="Prompt Packages" ? <PromptPackageStudio/> :
       page==="JSON Studio" ? <JsonStudio onDirtyChange={setJsonDirty}/> :
       page==="Overview" ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(library.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Planned reference pipelines"/></div> :
       <>
