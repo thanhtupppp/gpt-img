@@ -14,8 +14,8 @@ export const starterWorkflows: StarterWorkflow[] = [
     description: "Phân tích ảnh sản phẩm, chỉnh sửa chi tiết và kiểm tra chất lượng trước khi xuất.",
     steps: [
       { commandId: "analyze", parameters: { raw: "scope=full-image subject=product" } },
-      { commandId: "enhance", parameters: { raw: "target=product-details strength=medium" } },
-      { commandId: "color-correct", parameters: { raw: "white-balance=neutral preserve-brand-colors=true" } },
+      { commandId: "sharpen", parameters: { raw: "target=product-details strength=medium" } },
+      { commandId: "white-balance", parameters: { raw: "white-balance=neutral preserve-brand-colors=true" } },
       { commandId: "qc", parameters: { raw: "level=professional" } },
       { commandId: "export", parameters: { raw: "format=png quality=100" } },
     ],
