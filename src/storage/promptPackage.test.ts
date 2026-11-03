@@ -130,7 +130,7 @@ describe("Prompt Package", () => {
     };
     const value = createPromptPackage({ templates: [], workflows: [], workflowGraphs: [graph] });
     expect(parsePromptPackage(serializePromptPackage(value)).workflowGraphs).toEqual([graph]);
-    const legacy = { ...value };
+    const legacy = createPromptPackage({ templates: [template], workflows: [workflow] });
     delete (legacy as { workflowGraphs?: unknown }).workflowGraphs;
     expect(parsePromptPackage(JSON.stringify(legacy)).workflowGraphs).toEqual([]);
   });
