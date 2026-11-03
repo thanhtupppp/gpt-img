@@ -54,9 +54,9 @@ test("workflow can be edited, cloned, and deleted without losing the saved copy"
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByRole("button", { name: "Save workflow" }).click();
 
-  const saved = page.getByRole("button", { name: "Lifecycle Workflow", exact: true });
-  await expect(saved).toBeVisible();
-  await saved.click();
+  const savedRow = page.getByRole("listitem").filter({ hasText: "Lifecycle Workflow" });
+  await expect(savedRow).toBeVisible();
+  await savedRow.getByRole("button").first().click();
   await expect(page.getByRole("heading", { name: "Edit workflow" })).toBeVisible();
   await page.getByLabel("Workflow name").fill("Lifecycle Workflow Edited");
   await page.getByRole("button", { name: "Save workflow" }).click();
@@ -104,7 +104,8 @@ test("JSON Studio refuses to import workflow IDs that already exist", async ({ p
   await page.getByLabel("Choose workflow command").selectOption("source");
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByRole("button", { name: "Save workflow" }).click();
-  await expect(page.getByRole("button", { name: "Duplicate Guard Workflow", exact: true })).toBeVisible();
+  const duplicateGuardRow = page.getByRole("listitem").filter({ hasText: "Duplicate Guard Workflow" });
+  await expect(duplicateGuardRow).toBeVisible();
 
   await page.getByRole("button", { name: "JSON Studio", exact: true }).click();
   await page.getByRole("button", { name: "Workflows (", exact: false }).click();
