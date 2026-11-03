@@ -62,3 +62,17 @@ def test_workspace_rows_are_not_visible_to_legacy_helpers(monkeypatch, tmp_path)
     assert worker_store.get_worker_execution(execution_id, "workspace-private") is not None
     assert worker_store.request_execution_cancel(execution_id) is False
     assert worker_store.request_execution_cancel(execution_id, "workspace-private") is True
+
+
+def test_provider_vault_credentials_are_workspace_scoped(monkeypatch, tmp_path):
+    from cryptography.fernet import Fernet
+    from app.config import get_settings
+    from app.providers import vault
+    settings = get_settings()
+    monkeypatch.setattr(settings, "database_path", str(tmp_path / "vault.sqlite3"))
+    monkeypatch.setattr(settings, "secret_encryption_key", Fernet.generate_key().decode("ascii"))
+
+    vault.store_workspace_credential("workspace-a", "gemini", "alpha-credential")
+    assert vault._load_workspace_credential_for_execution("workspace-a", "gemini") == "alpha-credential"
+    assert vault._load_workspace_credential_for_execution("workspace-b", "gemini") is None
+    assert vault._load_credential_for_provider_execution("gemini") is None
