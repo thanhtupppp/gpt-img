@@ -10,6 +10,15 @@ from ..config import get_settings
 from .store import initialize_bridge_store
 
 
+def _started_units(states: dict[str, dict[str, Any]]) -> int:
+    return sum(1 for state in states.values() if isinstance(state, dict) and state.get("startedAt"))
+
+
+def _usage_helpers():
+    from ..tenancy.usage import initialize_usage_schema, settle_usage_in_transaction
+    return initialize_usage_schema, settle_usage_in_transaction
+
+
 def _connect() -> sqlite3.Connection:
     path = Path(get_settings().database_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -60,6 +69,8 @@ def initialize_worker_schema() -> None:
 def claim_next_execution(worker_id: str, lease_seconds: int = 90) -> dict[str, Any] | None:
     """Atomically claim the oldest queued record. Expired running records are never replayed."""
     initialize_worker_schema()
+    initialize_usage_schema, settle_usage_in_transaction = _usage_helpers()
+    initialize_usage_schema()
     now = _now()
     expires = _iso(now + timedelta(seconds=lease_seconds))
     with closing(_connect()) as db:
@@ -82,6 +93,9 @@ def claim_next_execution(worker_id: str, lease_seconds: int = 90) -> dict[str, A
                        WHERE id=? AND status='running'""",
                     (json.dumps(states, separators=(",", ":")), _iso(now), _iso(now), row["id"]),
                 )
+                # Started nodes may already have incurred provider usage. Settle this
+                # conservative upper bound when a worker lease expires.
+                settle_usage_in_transaction(db, row["id"], _started_units(states), uncertain=True)
             row = db.execute(
                 "SELECT id, graph_id, payload, attempts, workspace_id FROM bridge_executions WHERE status='queued' ORDER BY created_at, id LIMIT 1"
             ).fetchone()
@@ -149,9 +163,13 @@ def cancellation_requested(execution_id: str) -> bool:
 
 def persist_node_states(execution_id: str, worker_id: str, states: dict[str, dict[str, Any]]) -> bool:
     initialize_worker_schema()
+    initialize_usage_schema, settle_usage_in_transaction = _usage_helpers()
+    initialize_usage_schema()
     now = _iso(_now())
     with closing(_connect()) as db:
-        changed = db.execute(
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            changed = db.execute(
             """UPDATE bridge_executions SET node_states=?, updated_at=?
                WHERE id=? AND status='running' AND worker_id=?""",
             (json.dumps(states, separators=(",", ":")), now, execution_id, worker_id),
@@ -172,13 +190,21 @@ def finish_execution(
             """UPDATE bridge_executions SET status=?, node_states=?, error_summary=?,
                worker_id=NULL, lease_expires_at=NULL, finished_at=?, updated_at=?
                WHERE id=? AND status='running' AND worker_id=?""",
-            (status, json.dumps(states, separators=(",", ":")), error_summary, now, now, execution_id, worker_id),
-        ).rowcount
-    return changed == 1
+                (status, json.dumps(states, separators=(",", ":")), error_summary, now, now, execution_id, worker_id),
+            ).rowcount
+            if changed == 1:
+                settle_usage_in_transaction(db, execution_id, _started_units(states))
+            db.commit()
+            return changed == 1
+        except Exception:
+            db.rollback()
+            raise
 
 
 def request_execution_cancel(execution_id: str, workspace_id: str | None = None) -> bool:
     initialize_worker_schema()
+    initialize_usage_schema, settle_usage_in_transaction = _usage_helpers()
+    initialize_usage_schema()
     with closing(_connect()) as db:
         db.execute("BEGIN IMMEDIATE")
         try:
@@ -191,6 +217,7 @@ def request_execution_cancel(execution_id: str, workspace_id: str | None = None)
             now = _iso(_now())
             if row["status"] == "queued":
                 db.execute("UPDATE bridge_executions SET status='cancelled', cancel_requested=1, finished_at=?, updated_at=? WHERE id=? AND status='queued'", (now, now, execution_id))
+                settle_usage_in_transaction(db, execution_id, 0)
             else:
                 db.execute("UPDATE bridge_executions SET cancel_requested=1, updated_at=? WHERE id=? AND status='running'", (now, execution_id))
             db.execute("COMMIT")
