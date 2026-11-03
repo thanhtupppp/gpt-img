@@ -44,13 +44,16 @@ describe("hybrid workflow graph runtime", () => {
     const input = graph(["root", "a", "b", "c", "d"], [["root", "a"], ["root", "b"], ["root", "c"], ["root", "d"]]);
     let active = 0;
     let peak = 0;
+    let releaseBarrier!: () => void;
+    const barrier = new Promise<void>((resolve) => { releaseBarrier = resolve; });
     const adapter: GraphExecutionAdapter = {
       id: "parallel",
       name: "Parallel adapter",
       async executeStep(step) {
         active += 1;
         peak = Math.max(peak, active);
-        await Promise.resolve();
+        if (active >= 2) releaseBarrier();
+        await barrier;
         active -= 1;
         return { message: step.id };
       },
