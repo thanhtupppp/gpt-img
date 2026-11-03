@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { commandCatalog } from "../../data/commandCatalog";
+import { starterWorkflows } from "../../data/starterWorkflows";
 import type { WorkflowStep } from "../../domain/types";
 import { buildWorkflowPrompt, moveWorkflowStep, validateWorkflowCommandIds, type WorkflowBuilderStep } from "./workflowBuilder";
 
@@ -32,6 +34,15 @@ describe("workflow builder helpers", () => {
       "Step 1: command is required.",
       'Step 2: unknown command "not-real".',
     ]);
+  });
+
+  it("provides starter workflows containing only registered command IDs", () => {
+    const knownIds = new Set(commandCatalog.map((command) => command.id));
+    expect(starterWorkflows.length).toBeGreaterThanOrEqual(3);
+    for (const starter of starterWorkflows) {
+      expect(starter.steps.length).toBeGreaterThan(0);
+      for (const step of starter.steps) expect(knownIds.has(step.commandId)).toBe(true);
+    }
   });
 
   it("accepts known command IDs", () => {
