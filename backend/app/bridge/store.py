@@ -74,7 +74,7 @@ def get_package(package_id: str) -> dict[str, Any] | None:
 def submit_execution(graph_id: str, payload: dict[str, Any], idempotency_key: str | None) -> dict[str, Any]:
     initialize_bridge_store()
     serialized = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
-    with closing(_connect()) as connection:
+    with closing(_connect()) as connection, connection:
         if idempotency_key:
             existing = connection.execute(
                 "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE idempotency_key = ?",
