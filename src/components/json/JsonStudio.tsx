@@ -68,6 +68,7 @@ export function JsonStudio({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
         ? exportTemplates(templates.filter((item) => item.origin === "custom"))
         : exportWorkflows(workflows);
       setSource(content);
+      setBaseline(content);
       setIssues([]);
       setMessage("Đã nạp dữ liệu hiện có vào editor.");
     } catch {
@@ -95,6 +96,7 @@ export function JsonStudio({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
         await importWorkflows(items);
       }
       await refresh();
+      setBaseline(source);
       setIssues([]);
       setMessage("Nhập dữ liệu thành công. Không có bản ghi hiện tại nào bị ghi đè.");
     } catch (cause) {
@@ -106,7 +108,10 @@ export function JsonStudio({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
 
   const onFile = async (file?: File) => {
     if (!file) return;
-    setSource(await file.text());
+    const content = await file.text();
+    if (dirty && !window.confirm("Bạn có nội dung chưa lưu. Thay thế bằng file mới?")) return;
+    setSource(content);
+    setBaseline("");
     setIssues([]);
     setError("");
     setMessage(`Đã đọc ${file.name}. Hãy kiểm tra JSON trước khi nhập.`);
@@ -138,10 +143,16 @@ export function JsonStudio({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
           <label className="block text-xs text-slate-400">JSON document
             <textarea value={source} onChange={(event) => { setSource(event.target.value); setIssues([]); setMessage(""); setError(""); }} spellCheck={false} rows={22} placeholder="Paste a PIECS JSON backup or open a .json file..." className="mt-2 w-full rounded-xl border border-line bg-[#090d16] p-4 font-mono text-xs leading-5 text-slate-200 outline-none focus:border-indigo-400/60"/>
           </label>
-          <div className="flex flex-wrap justify-between gap-2">\n            <div className="flex flex-wrap gap-2">\n              <button type="button" onClick={formatJson} disabled={!source.trim()} className="inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs text-slate-300 disabled:opacity-40"><Braces size={13}/> Format JSON</button>\n              <button type="button" onClick={() => setShowPreview(value => !value)} disabled={!source.trim()} className="inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs text-slate-300 disabled:opacity-40"><Eye size={13}/>{showPreview ? "Hide preview" : "Preview"}</button>\n            </div>\n            <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex flex-wrap justify-between gap-2">
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={formatJson} disabled={!source.trim()} className="inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs text-slate-300 disabled:opacity-40"><Braces size={13}/> Format JSON</button>
+              <button type="button" onClick={() => setShowPreview(value => !value)} disabled={!source.trim()} className="inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs text-slate-300 disabled:opacity-40"><Eye size={13}/>{showPreview ? "Hide preview" : "Preview"}</button>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
             <button type="button" onClick={validate} disabled={!source.trim()} className="rounded-xl border border-line px-4 py-2.5 text-xs text-slate-300 disabled:opacity-40">Validate JSON</button>
             <button type="button" onClick={() => { if (window.confirm("Xác nhận nhập dữ liệu vào thư viện? Bản ghi trùng ID sẽ bị từ chối; dữ liệu hiện tại không bị ghi đè.")) void importBackup(); }} disabled={!source.trim() || busy} className="rounded-xl bg-indigo-400 px-4 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-40">{busy ? "Importing..." : "Import to library"}</button>
           </div>
+          {showPreview && <div className="overflow-hidden rounded-xl border border-line bg-[#090d16]"><div className="border-b border-line px-4 py-2 text-xs text-slate-400">JSON preview · read only</div><pre className="max-h-[520px] overflow-auto p-4 text-xs leading-5 text-slate-300">{(() => { try { return JSON.stringify(JSON.parse(source), null, 2); } catch { return "JSON chưa hợp lệ. Hãy sửa cú pháp trước khi xem trước."; } })()}</pre></div>}
         </div>
         <aside className="space-y-3">
           <div className="rounded-2xl border border-line bg-panel/60 p-4">

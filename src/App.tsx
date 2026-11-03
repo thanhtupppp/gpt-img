@@ -35,7 +35,8 @@ export default function App(){
   const [editorOpen,setEditorOpen]=useState(false);
   const [editing,setEditing]=useState<PiecsTemplate|undefined>();
   const [favorites,setFavorites]=useState<string[]>([]);
-  const [storageError,setStorageError]=useState("");\n  const [jsonDirty,setJsonDirty]=useState(false);
+  const [storageError,setStorageError]=useState("");
+  const [jsonDirty,setJsonDirty]=useState(false);
   useEffect(()=>{
     let active=true;
     initializeTemplateLibrary(templates).then(()=>Promise.all([listFavoriteIds(),listTemplates()])).then(([ids,items])=>{if(active){setFavorites(ids);setLibrary(items);}}).catch(()=>{if(active)setStorageError("Không thể mở bộ nhớ cục bộ. Hãy kiểm tra chế độ riêng tư hoặc quyền lưu trữ của trình duyệt.");});
