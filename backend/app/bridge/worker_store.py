@@ -182,7 +182,9 @@ def request_execution_cancel(execution_id: str, workspace_id: str | None = None)
     with closing(_connect()) as db:
         db.execute("BEGIN IMMEDIATE")
         try:
-            row = db.execute("SELECT status FROM bridge_executions WHERE id=? AND (? IS NULL OR workspace_id=?)", (execution_id, workspace_id, workspace_id)).fetchone()
+            row = (db.execute("SELECT status FROM bridge_executions WHERE id=? AND workspace_id IS NULL", (execution_id,)).fetchone()
+                   if workspace_id is None else
+                   db.execute("SELECT status FROM bridge_executions WHERE id=? AND workspace_id=?", (execution_id, workspace_id)).fetchone())
             if row is None or row["status"] not in {"queued", "running"}:
                 db.execute("ROLLBACK")
                 return False
@@ -204,8 +206,11 @@ def get_worker_execution(execution_id: str, workspace_id: str | None = None) -> 
         row = db.execute(
             """SELECT id, graph_id, status, attempts, node_states, started_at,
                finished_at, error_summary, created_at, updated_at
-               FROM bridge_executions WHERE id=? AND (? IS NULL OR workspace_id=?)""",
-            (execution_id, workspace_id, workspace_id),
+               FROM bridge_executions WHERE id=? AND workspace_id IS NULL""" if workspace_id is None else
+            """SELECT id, graph_id, status, attempts, node_states, started_at,
+               finished_at, error_summary, created_at, updated_at
+               FROM bridge_executions WHERE id=? AND workspace_id=?""",
+            (execution_id,) if workspace_id is None else (execution_id, workspace_id),
         ).fetchone()
     if row is None:
         return None
