@@ -1,20 +1,61 @@
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 
+import jwt
 import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi.testclient import TestClient
 
+from app.auth import oidc
 from app.bridge import store as bridge_store
 from app.bridge import worker_store
 from app.config import get_settings
 from app.tenancy import store as tenancy_store
 from app.tenancy import usage
+from app.main import app
 
 
 ISSUER = "https://issuer.example.test/"
+KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+client = TestClient(app)
+
+
+class SigningKey:
+    key = KEY.public_key()
+
+
+class Jwks:
+    def get_signing_key_from_jwt(self, token):
+        return SigningKey()
+
+
+def token(subject):
+    now = datetime.now(timezone.utc)
+    return jwt.encode(
+        {"sub": subject, "iss": ISSUER, "aud": "piecs", "iat": now,
+         "exp": now + timedelta(minutes=5)},
+        KEY,
+        algorithm="RS256",
+        headers={"kid": "usage-test"},
+    )
+
+
+def auth(subject):
+    return {"Authorization": f"Bearer {token(subject)}"}
+
+
 
 
 def configure_database(monkeypatch, tmp_path):
     settings = get_settings()
     monkeypatch.setattr(settings, "database_path", str(tmp_path / "usage.sqlite3"))
+    monkeypatch.setattr(oidc, "get_settings", lambda: type("S", (), {
+        "oidc_issuer": ISSUER,
+        "oidc_audience": "piecs",
+        "oidc_jwks_url": "https://issuer.example.test/jwks",
+        "oidc_algorithms": "RS256",
+    })())
+    monkeypatch.setattr(oidc, "_jwks_client", lambda url: Jwks())
 
 
 def make_workspace(subject="owner"):
@@ -131,3 +172,48 @@ def test_concurrent_submissions_cannot_overspend_workspace_quota(monkeypatch, tm
     snapshot = usage.get_workspace_usage(workspace["id"])
     assert snapshot["reservedUnits"] == 2
     assert snapshot["usedUnits"] == 0
+
+
+
+def test_usage_api_enforces_workspace_admin_quota_and_rejects_over_limit(monkeypatch, tmp_path):
+    configure_database(monkeypatch, tmp_path)
+    workspace = make_workspace("api-owner")
+    base = f"/api/v1/workspaces/{workspace['id']}"
+
+    initial = client.get(f"{base}/usage", headers=auth("api-owner"))
+    assert initial.status_code == 200
+    assert initial.json()["quotaEnforced"] is False
+
+    updated = client.put(
+        f"{base}/usage/quota",
+        headers=auth("api-owner"),
+        json={"monthly_units": 2},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["monthlyQuotaUnits"] == 2
+
+    payload = workflow("api-graph", 3)
+    rejected = client.post(
+        f"{base}/bridge/workflows",
+        headers=auth("api-owner"),
+        json=payload,
+    )
+    assert rejected.status_code == 429
+    assert rejected.json()["detail"]["code"] == "WORKSPACE_QUOTA_EXCEEDED"
+    snapshot = client.get(f"{base}/usage", headers=auth("api-owner")).json()
+    assert snapshot["usedUnits"] == 0
+    assert snapshot["reservedUnits"] == 0
+
+
+def test_workspace_member_cannot_change_quota(monkeypatch, tmp_path):
+    configure_database(monkeypatch, tmp_path)
+    workspace = make_workspace("quota-owner")
+    tenancy_store.add_member(
+        ISSUER, "quota-owner", workspace["id"], ISSUER, "quota-member", "member"
+    )
+    response = client.put(
+        f"/api/v1/workspaces/{workspace['id']}/usage/quota",
+        headers=auth("quota-member"),
+        json={"monthly_units": 10},
+    )
+    assert response.status_code == 403
