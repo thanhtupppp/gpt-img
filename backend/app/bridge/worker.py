@@ -59,18 +59,18 @@ def _input_for_node(node: dict[str, Any], parent_outputs: dict[str, dict[str, An
     parameters = node.get("parameters") or {}
     explicit_asset = parameters.get("input_asset_id")
     if isinstance(explicit_asset, str) and explicit_asset.strip():
-        data, mime = asset_store.get_image(explicit_asset.strip(), workspace_id)
+        data, mime = asset_store.get_image(explicit_asset.strip(), workspace_id) if workspace_id else asset_store.get_image(explicit_asset.strip())
         return base64.b64encode(data).decode("ascii"), mime
     explicit_parent = parameters.get("input_from")
     if isinstance(explicit_parent, str) and explicit_parent.strip():
         output = parent_outputs.get(explicit_parent.strip())
         if not output or not output.get("assetId"):
             raise ValueError("Configured input_from node has no image output.")
-        data, mime = asset_store.get_image(output["assetId"], workspace_id)
+        data, mime = asset_store.get_image(output["assetId"], workspace_id) if workspace_id else asset_store.get_image(output["assetId"])
         return base64.b64encode(data).decode("ascii"), mime
     for output in parent_outputs.values():
         if output.get("assetId"):
-            data, mime = asset_store.get_image(output["assetId"], workspace_id)
+            data, mime = asset_store.get_image(output["assetId"], workspace_id) if workspace_id else asset_store.get_image(output["assetId"])
             return base64.b64encode(data).decode("ascii"), mime
     return None, None
 
@@ -100,7 +100,7 @@ def _execute_node(
     except (binascii.Error, ValueError, TypeError) as exc:
         raise ValueError("Provider returned invalid image data.") from exc
     asset_id = f"{int(time.time() * 1000)}-{os.urandom(12).hex()}"
-    asset = asset_store.put_image(asset_id, raw, image["mime_type"], workspace_id)
+    asset = (asset_store.put_image(asset_id, raw, image["mime_type"], workspace_id) if workspace_id else asset_store.put_image(asset_id, raw, image["mime_type"]))
     return {
         "assetId": asset["id"],
         "mimeType": asset["mimeType"],
