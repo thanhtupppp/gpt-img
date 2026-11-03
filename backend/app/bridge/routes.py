@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from .security import require_bridge_token
 from .store import get_package, save_package, submit_execution
-from .worker_store import get_worker_execution, request_execution_cancel
+from .worker_store import get_worker_execution, request_execution_cancel, worker_available
 
 router = APIRouter(
     prefix="/api/v1/bridge",
@@ -150,7 +150,7 @@ def get_bridge_capabilities():
             "prompt_package_export": True,
             "workflow_submission": True,
             "execution_status": True,
-            "workflow_execution_worker": storage_configured,
+            "workflow_execution_worker": storage_configured and worker_available(),
             "workflow_asset_storage": storage_configured,
             "workflow_cancellation": True,
             "webhooks": False,
