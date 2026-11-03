@@ -20,7 +20,7 @@ describe("template transfer", () => {
   });
   it("rejects malformed JSON and invalid or system records", () => {
     expect(() => parseTemplateImport("{")).toThrow("JSON");
-    expect(() => parseTemplateImport(JSON.stringify({templates:[{...fixture,origin:"system"}]}))).toThrow("template cá nhân");
+    expect(() => parseTemplateImport(JSON.stringify({system:"PIECS",schemaVersion:PIECS_SCHEMA_VERSION,templates:[{...fixture,origin:"system"}]}))).toThrow("template cá nhân");
   });
   it("rejects duplicate IDs in one import file", () => {
     expect(() => parseTemplateImport(exportTemplates([fixture, fixture]))).toThrow("trùng");

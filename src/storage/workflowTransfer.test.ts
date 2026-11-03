@@ -27,7 +27,7 @@ describe("workflow transfer", () => {
 
   it("rejects malformed JSON, invalid records, and duplicate IDs", () => {
     expect(() => parseWorkflowImport("{")).toThrow("JSON");
-    expect(() => parseWorkflowImport(JSON.stringify({ workflows: [{ ...workflow, steps: [] }] }))).toThrow("không hợp lệ");
-    expect(() => parseWorkflowImport(JSON.stringify({ workflows: [workflow, workflow] }))).toThrow("trùng");
+    expect(() => parseWorkflowImport(JSON.stringify({ system: "PIECS", schemaVersion: PIECS_SCHEMA_VERSION, workflows: [{ ...workflow, steps: [] }] }))).toThrow("không hợp lệ");
+    expect(() => parseWorkflowImport(JSON.stringify({ system: "PIECS", schemaVersion: PIECS_SCHEMA_VERSION, workflows: [workflow, workflow] }))).toThrow("trùng");
   });
 });
