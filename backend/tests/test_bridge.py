@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from app.bridge import security, store
+from app.bridge import security, store, worker_store
 from app.main import app
 
 client = TestClient(app)
@@ -12,6 +12,7 @@ AUTH = {"Authorization": "Bearer bridge-secret"}
 def configure_bridge(monkeypatch, tmp_path):
     monkeypatch.setattr(security, "get_settings", lambda: SimpleNamespace(bridge_token="bridge-secret"))
     monkeypatch.setattr(store, "get_settings", lambda: SimpleNamespace(database_path=str(tmp_path / "bridge.sqlite3")))
+    monkeypatch.setattr(worker_store, "get_settings", lambda: SimpleNamespace(database_path=str(tmp_path / "bridge.sqlite3")))
 
 
 def test_bridge_requires_configuration(monkeypatch):
@@ -48,6 +49,8 @@ def test_bridge_capabilities_report_only_implemented_features(monkeypatch):
         "workflow_submission": True,
         "execution_status": True,
         "workflow_execution_worker": False,
+        "workflow_asset_storage": False,
+        "workflow_cancellation": True,
         "webhooks": False,
     }
 
