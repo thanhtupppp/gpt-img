@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     oidc_audience: str = ""
     oidc_jwks_url: str = ""
     oidc_algorithms: str = "RS256"
+    rate_limit_requests: int = 120
+    rate_limit_window_seconds: int = 60
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -34,6 +36,8 @@ class Settings(BaseSettings):
             raise ValueError("Wildcard CORS origins are forbidden in production.")
         if not 1 <= self.worker_max_concurrency <= 4:
             raise ValueError("PIECS_WORKER_MAX_CONCURRENCY must be between 1 and 4.")
+        if self.rate_limit_requests < 1 or self.rate_limit_window_seconds < 1:
+            raise ValueError("PIECS_RATE_LIMIT_REQUESTS and PIECS_RATE_LIMIT_WINDOW_SECONDS must be positive.")
 
 
 @lru_cache
