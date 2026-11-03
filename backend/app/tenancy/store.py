@@ -141,13 +141,27 @@ def add_member(actor_issuer: str, actor_subject: str, workspace_id: str,
         raise ValueError("New members must be assigned admin, member, or viewer; ownership is not assignable.")
     require_role(actor_issuer, actor_subject, workspace_id, "admin")
     initialize_tenancy()
-    with closing(_connect()) as db, db:
-        user_id = _user_id(db, member_issuer, member_subject)
-        db.execute("""
-            INSERT INTO workspace_memberships(workspace_id,user_id,role,status)
-            VALUES(?,?,?,'active')
-            ON CONFLICT(workspace_id,user_id) DO UPDATE SET role=excluded.role,status='active'
-        """, (workspace_id, user_id, role))
+    with closing(_connect()) as db:
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            user_id = _user_id(db, member_issuer, member_subject)
+            existing = db.execute(
+                "SELECT role,status FROM workspace_memberships WHERE workspace_id=? AND user_id=?",
+                (workspace_id, user_id),
+            ).fetchone()
+            if existing is not None and existing["role"] == "owner":
+                raise ValueError("Workspace ownership cannot be changed through member management.")
+            if existing is not None and existing["status"] != "active":
+                raise ValueError("Suspended members cannot be re-activated through member management.")
+            db.execute("""
+                INSERT INTO workspace_memberships(workspace_id,user_id,role,status)
+                VALUES(?,?,?,'active')
+                ON CONFLICT(workspace_id,user_id) DO UPDATE SET role=excluded.role
+            """, (workspace_id, user_id, role))
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
 
 
 def change_member_role(actor_issuer: str, actor_subject: str, workspace_id: str,
