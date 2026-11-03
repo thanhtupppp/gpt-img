@@ -84,6 +84,24 @@ describe("template repository", () => {
     expect(records[0].name).toBe("System product");
   });
 
+  it("rejects duplicate IDs within one batch before writing any record", async () => {
+    const duplicate = { ...systemTemplate, id: "CUSTOM-DUPLICATE", origin: "custom" };
+    await expect(importCustomTemplates([duplicate, duplicate])).rejects.toThrow("Duplicate template ID");
+    expect(await listTemplates()).toEqual([]);
+  });
+
+  it("treats an empty import as a safe no-op", async () => {
+    await expect(importCustomTemplates([])).resolves.toEqual([]);
+    expect(await listTemplates()).toEqual([]);
+  });
+
+  it("rejects a mixed valid and invalid import batch without partial writes", async () => {
+    const valid = { ...systemTemplate, id: "CUSTOM-VALID", origin: "custom" as const };
+    const invalid = { ...systemTemplate, id: "CUSTOM-INVALID", origin: "custom" as const, parameters: { nested: { value: true } } };
+    await expect(importCustomTemplates([valid, invalid])).rejects.toBeInstanceOf(TemplateRepositoryError);
+    expect(await listTemplates()).toEqual([]);
+  });
+
   it("imports a batch of valid custom templates", async () => {
     const incoming = [
       { ...systemTemplate, id: "CUSTOM-BATCH-1", origin: "custom" },

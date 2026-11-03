@@ -39,10 +39,9 @@ export function CommandBuilder({ copied, onCopy }: Props) {
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
             <div className="grid gap-2 sm:grid-cols-[minmax(0,.8fr)_minmax(0,1.2fr)]">
-              <input aria-label="Search builder commands" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search commands..." className="h-11 min-w-0 rounded-xl border border-line bg-[#090d16] px-3 text-sm outline-none focus:border-indigo-400/60"/>
+              <input aria-label="Search builder commands" value={query} onChange={(event) => { const value = event.target.value; setQuery(value); setSelectedCommand(searchCommands(value)[0]?.id ?? ""); }} placeholder="Search commands..." className="h-11 min-w-0 rounded-xl border border-line bg-[#090d16] px-3 text-sm outline-none focus:border-indigo-400/60"/>
               <select aria-label="Choose command to add" value={selectedCommand} onChange={(event) => setSelectedCommand(event.target.value)} className="h-11 min-w-0 rounded-xl border border-line bg-[#090d16] px-3 text-sm outline-none focus:border-indigo-400/60">
                 {available.map((command) => <option key={command.id} value={command.id}>/{command.id} · {command.module}</option>)}
-                {!available.some((command) => command.id === selectedCommand) && <option value={selectedCommand}>/{selectedCommand}</option>}
               </select>
             </div>
             <button type="button" onClick={addStep} disabled={!selectedCommand} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-indigo-400 px-4 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-40"><Plus size={16}/> Add command</button>

@@ -39,6 +39,27 @@ describe("PIECS template validation", () => {
     expect(issues.some((issue) => issue.path === "parameters")).toBe(true);
   });
 
+  it("treats markup-like text as data and accepts it without executing it", () => {
+    const payload = "<img src=x onerror=alert(1)>";
+    const value = { ...validTemplate, name: payload, description: payload, tags: [payload] };
+    expect(validateTemplate(value)).toEqual([]);
+    expect(isPiecsTemplate(value)).toBe(true);
+  });
+
+  it("rejects nested objects and prototype-pollution-shaped parameter values", () => {
+    const polluted = JSON.parse('{"__proto__":{"polluted":true}}') as Record<string, unknown>;
+    const issues = validateTemplate({ ...validTemplate, parameters: polluted });
+    expect(issues.some((issue) => issue.path === "parameters")).toBe(true);
+    expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
+  });
+
+  it("rejects prototype-sensitive and non-scalar parameter keys", () => {
+    const withNested = { ...validTemplate, parameters: { safe: "ok", nested: { value: true } } };
+    expect(validateTemplate(withNested).some((issue) => issue.path === "parameters")).toBe(true);
+    const withArray = { ...validTemplate, parameters: { safe: ["not", "scalar"] } };
+    expect(validateTemplate(withArray).some((issue) => issue.path === "parameters")).toBe(true);
+  });
+
   it("rejects unsupported schema versions", () => {
     const issues = validateTemplate({ ...validTemplate, schemaVersion: "0.1.0" });
     expect(issues.some((issue) => issue.path === "schemaVersion")).toBe(true);

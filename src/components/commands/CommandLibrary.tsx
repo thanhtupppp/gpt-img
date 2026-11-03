@@ -3,6 +3,7 @@ import {Check,Command,Copy,Search,Tag} from "lucide-react";
 import {commandModules} from "../../data/commands";
 import {commandCatalog,searchCommands,type CommandCatalogEntry} from "../../data/commandCatalog";
 import { CommandBuilder } from "./CommandBuilder";
+import { getNextCommandTab } from "../../features/commands/commandTabs";
 
 type Props={copied:string;onCopy:(value:string,id:string)=>void};
 export function CommandLibrary({copied,onCopy}:Props){
@@ -13,12 +14,19 @@ export function CommandLibrary({copied,onCopy}:Props){
   const filtered=useMemo(()=>searchCommands(query).filter(command=>moduleFilter==="All"||command.module===moduleFilter),[query,moduleFilter]);
   const selected=filtered.find(command=>command.id===selectedId)??filtered[0];
   const chooseModule=(value:string)=>{setModuleFilter(value);const next=searchCommands(query).filter(command=>value==="All"||command.module===value);setSelectedId(next[0]?.id??"");};
+  const handleTabKeyDown=(event:React.KeyboardEvent<HTMLDivElement>)=>{
+    const next=getNextCommandTab(activeTab,event.key);
+    if(!next)return;
+    event.preventDefault();
+    setActiveTab(next);
+    document.getElementById(next==="library"?"command-library-tab":"command-builder-tab")?.focus();
+  };
   return <section className="space-y-5">
-    <div className="flex gap-2 border-b border-line pb-3" role="tablist" aria-label="Command tools">
-      <button type="button" role="tab" aria-selected={activeTab==="library"} onClick={()=>setActiveTab("library")} className={`rounded-lg px-4 py-2 text-sm ${activeTab==="library"?"bg-indigo-400/15 text-indigo-200":"text-slate-400 hover:bg-white/5"}`}>Command Library</button>
-      <button type="button" role="tab" aria-selected={activeTab==="builder"} onClick={()=>setActiveTab("builder")} className={`rounded-lg px-4 py-2 text-sm ${activeTab==="builder"?"bg-indigo-400/15 text-indigo-200":"text-slate-400 hover:bg-white/5"}`}>Command Builder</button>
+    <div className="flex gap-2 border-b border-line pb-3" role="tablist" aria-label="Command tools" onKeyDown={handleTabKeyDown}>
+      <button type="button" id="command-library-tab" role="tab" aria-selected={activeTab==="library"} aria-controls="command-library-panel" tabIndex={activeTab==="library"?0:-1} onClick={()=>setActiveTab("library")} className={`rounded-lg px-4 py-2 text-sm ${activeTab==="library"?"bg-indigo-400/15 text-indigo-200":"text-slate-400 hover:bg-white/5"}`}>Command Library</button>
+      <button type="button" id="command-builder-tab" role="tab" aria-selected={activeTab==="builder"} aria-controls="command-builder-panel" tabIndex={activeTab==="builder"?0:-1} onClick={()=>setActiveTab("builder")} className={`rounded-lg px-4 py-2 text-sm ${activeTab==="builder"?"bg-indigo-400/15 text-indigo-200":"text-slate-400 hover:bg-white/5"}`}>Command Builder</button>
     </div>
-    {activeTab==="builder" ? <CommandBuilder copied={copied} onCopy={onCopy}/> : <>
+    {activeTab==="builder" ? <div id="command-builder-panel" role="tabpanel" aria-labelledby="command-builder-tab" tabIndex={0}><CommandBuilder copied={copied} onCopy={onCopy}/></div> : <div id="command-library-panel" role="tabpanel" aria-labelledby="command-library-tab" tabIndex={0}>
     <div className="flex flex-col gap-3 lg:flex-row">
       <div className="relative min-w-0 flex-1"><Search aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={17}/><input aria-label="Search commands" value={query} onChange={event=>{setQuery(event.target.value);const next=searchCommands(event.target.value).filter(command=>moduleFilter==="All"||command.module===moduleFilter);setSelectedId(next[0]?.id??"");}} placeholder="Search command, description, module, or tag..." className="h-12 w-full rounded-xl border border-line bg-panel/80 pl-11 pr-4 text-sm outline-none placeholder:text-slate-600 focus:border-indigo-400/60 focus:ring-2 focus:ring-indigo-400/15"/></div>
       <select aria-label="Filter commands by module" value={moduleFilter} onChange={event=>chooseModule(event.target.value)} className="h-12 rounded-xl border border-line bg-panel px-4 text-sm text-slate-300 outline-none focus:border-indigo-400/60"><option value="All">All modules · 80</option>{commandModules.map(module=><option key={module.name} value={module.name}>{module.name} · {module.commands.length}</option>)}</select>
@@ -32,14 +40,14 @@ export function CommandLibrary({copied,onCopy}:Props){
         {selected?<CommandDetail command={selected} copied={copied===selected.id} onCopy={()=>onCopy(selected.syntax,selected.id)}/>:<div className="rounded-2xl border border-line bg-panel/50 p-6 text-sm text-slate-500">Select a command to inspect its specification.</div>}
       </aside>
     </div>
-    </>}
+    </div>}
   </section>;
 }
 function CommandItem({command,active,copied,onSelect,onCopy}:{command:CommandCatalogEntry;active:boolean;copied:boolean;onSelect:()=>void;onCopy:()=>void}){
   return <article className={`rounded-xl border p-4 transition ${active?"border-indigo-300/50 bg-indigo-400/[.07]":"border-line bg-panel/50 hover:border-slate-600"}`}>
     <div className="flex items-start justify-between gap-2"><button type="button" onClick={onSelect} className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"><div className="font-mono text-sm font-semibold text-slate-100">/{command.id}</div><div className="mt-1 text-[11px] text-indigo-300">{command.module}</div></button><button type="button" aria-label={`Copy ${command.id} syntax`} onClick={onCopy} className="rounded-lg p-2 text-slate-500 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300">{copied?<Check size={14} className="text-emerald-300"/>:<Copy size={14}/>}</button></div>
     <p className="mt-3 line-clamp-2 text-xs leading-5 text-slate-400">{command.description}</p>
-    <button type="button" onClick={onSelect} className="mt-3 text-[11px] font-medium text-indigo-300 hover:text-indigo-200">View specification →</button>
+    <button type="button" onClick={onSelect} aria-label={`View specification for ${command.id}`} className="mt-3 text-[11px] font-medium text-indigo-300 hover:text-indigo-200">View specification →</button>
   </article>;
 }
 function CommandDetail({command,copied,onCopy}:{command:CommandCatalogEntry;copied:boolean;onCopy:()=>void}){

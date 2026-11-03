@@ -12,12 +12,15 @@ import {StatCard} from "./components/ui/StatCard";
 import {TemplateCard} from "./components/templates/TemplateCard";
 import {TemplateDetail} from "./components/templates/TemplateDetail";
 import {CommandLibrary} from "./components/commands/CommandLibrary";
+import {WorkflowBuilder} from "./components/workflows/WorkflowBuilder";
+import {JsonStudio} from "./components/json/JsonStudio";
 
 const pageCopy:Record<AppPage,{title:string;description:string}> = {
   "Overview":{title:"Creative workspace",description:"Your PIECS workspace at a glance."},
   "Template Library":{title:"Template Library",description:"Khám phá, tìm kiếm và tái sử dụng các preset chỉnh sửa ảnh AI theo chuẩn PIECS."},
   "Workflows":{title:"Workflow Library",description:"Quản lý các quy trình chỉnh sửa nhiều bước theo chuẩn PIECS."},
   "Command Library":{title:"Command Library",description:"Explore the 80 standardized PIECS commands across eight functional modules."},
+  "JSON Studio":{title:"JSON Studio",description:"Validate, import, export and back up your local PIECS library data."},
   "Favorites":{title:"Your Favorites",description:"Các template anh đã lưu để truy cập nhanh."},
   "Settings":{title:"Settings",description:"Thông tin và tùy chọn của PIECS Library."},
 };
@@ -33,6 +36,7 @@ export default function App(){
   const [editing,setEditing]=useState<PiecsTemplate|undefined>();
   const [favorites,setFavorites]=useState<string[]>([]);
   const [storageError,setStorageError]=useState("");
+  const [jsonDirty,setJsonDirty]=useState(false);
   useEffect(()=>{
     let active=true;
     initializeTemplateLibrary(templates).then(()=>Promise.all([listFavoriteIds(),listTemplates()])).then(([ids,items])=>{if(active){setFavorites(ids);setLibrary(items);}}).catch(()=>{if(active)setStorageError("Không thể mở bộ nhớ cục bộ. Hãy kiểm tra chế độ riêng tư hoặc quyền lưu trữ của trình duyệt.");});
@@ -58,19 +62,20 @@ export default function App(){
     (page!=="Favorites"||favorites.includes(t.id))
   ),[library,category,profile,query,page,favorites]);
 
-  return <AppShell page={page} onNavigate={next=>{setPage(next);setSelected(null);}} favoriteCount={favorites.length}>
+  return <AppShell page={page} onNavigate={next=>{if(page==="JSON Studio" && jsonDirty && !window.confirm("JSON Studio có nội dung chưa lưu. Anh vẫn muốn rời trang?")) return;setPage(next);setSelected(null);}} favoriteCount={favorites.length}>
     {editorOpen&&<TemplateEditor initial={editing} onCancel={()=>setEditorOpen(false)} onSave={async item=>{await saveCustomTemplate(item);await refreshLibrary();setEditorOpen(false);setEditing(undefined);}}/>}
     {selected ? <TemplateDetail template={selected} onBack={()=>setSelected(null)} onCopy={copy} copied={copied} favorite={favorites.includes(selected.id)} onFavorite={()=>toggleFavorite(selected.id)}/> :
     <div className="space-y-7">
       {storageError&&<div role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-xs text-rose-200">{storageError}</div>}
       <header className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div><div className="mb-3 flex items-center gap-2 text-xs font-medium text-indigo-300"><Sparkles size={14}/> PROFESSIONAL IMAGE EDITING COMMAND SYSTEM</div><h1 className="text-3xl font-semibold tracking-tight md:text-[40px]">{pageCopy[page].title}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">{pageCopy[page].description}</p></div>
-        {page==="Template Library"&&<div className="flex flex-wrap gap-2 self-start"><button type="button" onClick={()=>{setEditing(undefined);setEditorOpen(true);}} className="inline-flex items-center gap-2 rounded-xl bg-indigo-400 px-4 py-2.5 text-sm font-semibold text-slate-950"><Plus size={16}/> New template</button><button type="button" onClick={()=>{const blob=new Blob([exportTemplates(library.filter(item=>item.origin==="custom"))],{type:"application/json"});const url=URL.createObjectURL(blob);const anchor=document.createElement("a");anchor.href=url;anchor.download="piecs-templates.json";anchor.click();URL.revokeObjectURL(url);}} className="inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs text-slate-300"><Download size={14}/> Export</button><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs text-slate-300"><Upload size={14}/> Import<input type="file" accept="application/json,.json" className="hidden" onChange={async event=>{const file=event.target.files?.[0];if(!file)return;try{const imported=parseTemplateImport(await file.text());const duplicate=imported.find(item=>library.some(existing=>existing.id===item.id));if(duplicate)throw new Error(`ID ${duplicate.id} đã tồn tại. Không ghi đè template hiện có.`);await importCustomTemplates(imported);await refreshLibrary();setStorageError("");}catch(error){setStorageError(error instanceof Error?error.message:"Không thể nhập file.");}finally{event.target.value="";}}}/></label></div>}
+        {page==="Template Library"&&<div className="flex flex-wrap gap-2 self-start"><button type="button" onClick={()=>{setEditing(undefined);setEditorOpen(true);}} className="inline-flex items-center gap-2 rounded-xl bg-indigo-400 px-4 py-2.5 text-sm font-semibold text-slate-950"><Plus size={16}/> New template</button><button type="button" onClick={()=>{try{const blob=new Blob([exportTemplates(library.filter(item=>item.origin==="custom"))],{type:"application/json"});const url=URL.createObjectURL(blob);const anchor=document.createElement("a");anchor.href=url;anchor.download="piecs-templates.json";anchor.click();window.setTimeout(()=>URL.revokeObjectURL(url),1000);}catch{setStorageError("Không thể xuất backup. Hãy kiểm tra quyền tải file của trình duyệt.");}}} className="inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs text-slate-300"><Download size={14}/> Export</button><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-xs text-slate-300"><Upload size={14}/> Import<input type="file" aria-label="Import custom templates JSON" accept="application/json,.json" className="hidden" onChange={async event=>{const file=event.target.files?.[0];if(!file)return;if(file.size>10*1024*1024){setStorageError("File vượt quá giới hạn 10 MB. Hãy chia nhỏ dữ liệu trước khi nhập.");event.target.value="";return;}try{const imported=parseTemplateImport(await file.text());const duplicate=imported.find(item=>library.some(existing=>existing.id===item.id));if(duplicate)throw new Error(`ID ${duplicate.id} đã tồn tại. Không ghi đè template hiện có.`);await importCustomTemplates(imported);await refreshLibrary();setStorageError("");}catch(error){setStorageError(error instanceof Error?error.message:"Không thể nhập file.");}finally{event.target.value="";}}}/></label></div>}
       </header>
 
       {page==="Settings" ? <section className="max-w-2xl rounded-2xl border border-line bg-panel p-6"><h2 className="font-semibold">Library preferences</h2><p className="mt-2 text-sm leading-6 text-slate-400">Dữ liệu thư viện và danh sách yêu thích được lưu cục bộ bằng IndexedDB trên thiết bị này. Anh có thể tạo, sửa, xóa template cá nhân và xuất/nhập JSON để sao lưu thủ công; không có tài khoản hoặc đồng bộ cloud.</p><div className="mt-5 rounded-xl bg-slate-900 p-4 text-xs text-slate-400">PIECS Core · schema v1.0.0 · Master profile · 80 registered commands</div></section> :
       page==="Command Library" ? <CommandLibrary copied={copied} onCopy={copy}/> :
-      page==="Workflows" ? <EmptyFeature icon={Workflow} title="Workflow Builder" description="Workflow Builder, các bước tuần tự và bộ workflow mẫu sẽ được triển khai trong P3."/> :
+      page==="Workflows" ? <WorkflowBuilder copied={copied} onCopy={copy}/> :
+      page==="JSON Studio" ? <JsonStudio onDirtyChange={setJsonDirty}/> :
       page==="Overview" ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(library.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Planned reference pipelines"/></div> :
       <>
         {page==="Template Library"&&<div className="grid gap-3 sm:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(templates.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Reference pipelines"/></div>}
@@ -85,4 +90,3 @@ export default function App(){
   </AppShell>;
 }
 
-function EmptyFeature({icon:Icon,title,description}:{icon:typeof Workflow;title:string;description:string}){return <section className="rounded-2xl border border-dashed border-line bg-panel/30 px-5 py-16 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-indigo-400/10 text-indigo-300"><Icon size={22}/></div><h2 className="mt-4 font-semibold">{title}</h2><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-400">{description}</p></section>}
