@@ -67,6 +67,13 @@ describe("workflow repository", () => {
     expect(await listWorkflows()).toEqual([]);
   });
 
+  it("rejects a mixed valid and invalid import batch without partial writes", async () => {
+    const valid = { ...workflow, id: "WORKFLOW-VALID" };
+    const invalid = { ...workflow, id: "WORKFLOW-INVALID", steps: [] };
+    await expect(importWorkflows([valid, invalid])).rejects.toBeInstanceOf(WorkflowRepositoryError);
+    expect(await listWorkflows()).toEqual([]);
+  });
+
   it("treats an empty workflow import as a safe no-op", async () => {
     await expect(importWorkflows([])).resolves.toEqual([]);
     expect(await listWorkflows()).toEqual([]);

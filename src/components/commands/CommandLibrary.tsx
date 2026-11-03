@@ -3,6 +3,7 @@ import {Check,Command,Copy,Search,Tag} from "lucide-react";
 import {commandModules} from "../../data/commands";
 import {commandCatalog,searchCommands,type CommandCatalogEntry} from "../../data/commandCatalog";
 import { CommandBuilder } from "./CommandBuilder";
+import { getNextCommandTab } from "../../features/commands/commandTabs";
 
 type Props={copied:string;onCopy:(value:string,id:string)=>void};
 export function CommandLibrary({copied,onCopy}:Props){
@@ -13,8 +14,15 @@ export function CommandLibrary({copied,onCopy}:Props){
   const filtered=useMemo(()=>searchCommands(query).filter(command=>moduleFilter==="All"||command.module===moduleFilter),[query,moduleFilter]);
   const selected=filtered.find(command=>command.id===selectedId)??filtered[0];
   const chooseModule=(value:string)=>{setModuleFilter(value);const next=searchCommands(query).filter(command=>value==="All"||command.module===value);setSelectedId(next[0]?.id??"");};
+  const handleTabKeyDown=(event:React.KeyboardEvent<HTMLDivElement>)=>{
+    const next=getNextCommandTab(activeTab,event.key);
+    if(!next)return;
+    event.preventDefault();
+    setActiveTab(next);
+    document.getElementById(next==="library"?"command-library-tab":"command-builder-tab")?.focus();
+  };
   return <section className="space-y-5">
-    <div className="flex gap-2 border-b border-line pb-3" role="tablist" aria-label="Command tools">
+    <div className="flex gap-2 border-b border-line pb-3" role="tablist" aria-label="Command tools" onKeyDown={handleTabKeyDown}>
       <button type="button" id="command-library-tab" role="tab" aria-selected={activeTab==="library"} aria-controls="command-library-panel" tabIndex={activeTab==="library"?0:-1} onClick={()=>setActiveTab("library")} className={`rounded-lg px-4 py-2 text-sm ${activeTab==="library"?"bg-indigo-400/15 text-indigo-200":"text-slate-400 hover:bg-white/5"}`}>Command Library</button>
       <button type="button" id="command-builder-tab" role="tab" aria-selected={activeTab==="builder"} aria-controls="command-builder-panel" tabIndex={activeTab==="builder"?0:-1} onClick={()=>setActiveTab("builder")} className={`rounded-lg px-4 py-2 text-sm ${activeTab==="builder"?"bg-indigo-400/15 text-indigo-200":"text-slate-400 hover:bg-white/5"}`}>Command Builder</button>
     </div>
