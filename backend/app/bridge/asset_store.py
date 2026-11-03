@@ -1,13 +1,23 @@
 """S3-compatible asset storage (Cloudflare R2 supported)."""
 import os
+import re
 from functools import lru_cache
 from typing import Any
 
 from ..config import get_settings
 
+_ASSET_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+
 
 class AssetStoreNotConfigured(RuntimeError):
     pass
+
+
+def _validate_asset_id(asset_id: str) -> str:
+    """Reject IDs that could alter the S3 key path (slashes, dot segments, encoded chars)."""
+    if not isinstance(asset_id, str) or not _ASSET_ID_PATTERN.fullmatch(asset_id) or ".." in asset_id:
+        raise ValueError("Invalid workflow asset id.")
+    return asset_id
 
 
 @lru_cache
@@ -29,6 +39,7 @@ def _client():
 
 
 def put_image(asset_id: str, data: bytes, mime_type: str, workspace_id: str | None = None) -> dict[str, Any]:
+    _validate_asset_id(asset_id)
     if mime_type not in {"image/png", "image/jpeg", "image/webp"}:
         raise ValueError("Unsupported workflow asset MIME type.")
     if not data or len(data) > 25 * 1024 * 1024:
@@ -46,6 +57,7 @@ def put_image(asset_id: str, data: bytes, mime_type: str, workspace_id: str | No
 
 
 def get_image(asset_id: str, workspace_id: str | None = None) -> tuple[bytes, str]:
+    _validate_asset_id(asset_id)
     settings = get_settings()
     key = f"piecs/workspace-assets/{workspace_id}/{asset_id}" if workspace_id else f"piecs/workflow-assets/{asset_id}"
     result = _client().get_object(Bucket=settings.asset_s3_bucket, Key=key)
