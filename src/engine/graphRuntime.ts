@@ -104,14 +104,19 @@ export async function executeWorkflowGraph(
     updatedAt: timestamp(),
   };
 
+  let persistQueue = Promise.resolve();
   const persist = async () => {
-    snapshot.nodes = graph.nodes.map((node) => ({ ...records.get(node.id)! }));
-    snapshot.progress = Math.round(
-      (snapshot.nodes.filter((node) => node.status === "succeeded").length / graph.nodes.length) * 100,
-    );
-    snapshot.updatedAt = timestamp();
-    await hooks.save(cloneSnapshot(snapshot));
-    hooks.onUpdate?.(cloneSnapshot(snapshot));
+    persistQueue = persistQueue.then(async () => {
+      snapshot.nodes = graph.nodes.map((node) => ({ ...records.get(node.id)! }));
+      snapshot.progress = Math.round(
+        (snapshot.nodes.filter((node) => node.status === "succeeded").length / graph.nodes.length) * 100,
+      );
+      snapshot.updatedAt = timestamp();
+      const persisted = cloneSnapshot(snapshot);
+      await hooks.save(persisted);
+      hooks.onUpdate?.(cloneSnapshot(persisted));
+    });
+    await persistQueue;
   };
 
   const parents = new Map<string, string[]>();
