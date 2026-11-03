@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ..config import get_settings
+from .store import initialize_bridge_store
 
 
 def _connect() -> sqlite3.Connection:
@@ -28,6 +29,7 @@ def _iso(value: datetime) -> str:
 
 
 def initialize_worker_schema() -> None:
+    initialize_bridge_store()
     with closing(_connect()) as db:
         columns = {row["name"] for row in db.execute("PRAGMA table_info(bridge_executions)")}
         migrations = {
@@ -47,6 +49,7 @@ def initialize_worker_schema() -> None:
                     db.execute(f"ALTER TABLE bridge_executions ADD COLUMN {name} {definition}")
             db.execute("CREATE INDEX IF NOT EXISTS idx_bridge_executions_queue ON bridge_executions(status, created_at)")
             db.execute("CREATE INDEX IF NOT EXISTS idx_bridge_executions_lease ON bridge_executions(status, lease_expires_at)")
+            db.execute("CREATE TABLE IF NOT EXISTS bridge_workers (worker_id TEXT PRIMARY KEY, heartbeat_at TEXT NOT NULL)")
             db.execute("COMMIT")
         except Exception:
             db.execute("ROLLBACK")
@@ -107,6 +110,22 @@ def claim_next_execution(worker_id: str, lease_seconds: int = 90) -> dict[str, A
             raise
 
 
+def register_worker(worker_id: str) -> None:
+    initialize_worker_schema()
+    with closing(_connect()) as db:
+        db.execute("INSERT INTO bridge_workers(worker_id, heartbeat_at) VALUES (?, ?) ON CONFLICT(worker_id) DO UPDATE SET heartbeat_at=excluded.heartbeat_at", (worker_id, _iso(_now())))
+
+def worker_available(max_age_seconds: int = 90) -> bool:
+    initialize_worker_schema()
+    cutoff = _iso(_now() - timedelta(seconds=max_age_seconds))
+    with closing(_connect()) as db:
+        row = db.execute("SELECT 1 FROM bridge_workers WHERE heartbeat_at >= ? LIMIT 1", (cutoff,)).fetchone()
+    return row is not None
+
+def heartbeat_worker(worker_id: str) -> None:
+    initialize_worker_schema()
+    with closing(_connect()) as db:
+        db.execute("UPDATE bridge_workers SET heartbeat_at=? WHERE worker_id=?", (_iso(_now()), worker_id))
 def heartbeat(execution_id: str, worker_id: str, lease_seconds: int = 90) -> bool:
     initialize_worker_schema()
     now = _now()
@@ -159,13 +178,23 @@ def finish_execution(
 def request_execution_cancel(execution_id: str) -> bool:
     initialize_worker_schema()
     with closing(_connect()) as db:
-        changed = db.execute(
-            """UPDATE bridge_executions SET cancel_requested=1, updated_at=?
-               WHERE id=? AND status IN ('queued','running')""",
-            (_iso(_now()), execution_id),
-        ).rowcount
-    return changed == 1
-
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            row = db.execute("SELECT status FROM bridge_executions WHERE id=?", (execution_id,)).fetchone()
+            if row is None or row["status"] not in {"queued", "running"}:
+                db.execute("ROLLBACK")
+                return False
+            now = _iso(_now())
+            if row["status"] == "queued":
+                db.execute("UPDATE bridge_executions SET status='cancelled', cancel_requested=1, finished_at=?, updated_at=? WHERE id=? AND status='queued'", (now, now, execution_id))
+            else:
+                db.execute("UPDATE bridge_executions SET cancel_requested=1, updated_at=? WHERE id=? AND status='running'", (now, execution_id))
+            db.execute("COMMIT")
+            return True
+        except Exception:
+            if db.in_transaction:
+                db.execute("ROLLBACK")
+            raise
 
 def get_worker_execution(execution_id: str) -> dict[str, Any] | None:
     initialize_worker_schema()
