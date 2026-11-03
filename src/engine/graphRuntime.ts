@@ -2,7 +2,7 @@ import type { WorkflowStep } from "../domain/types";
 import type { WorkflowGraph } from "./workflowGraph";
 import type { WorkflowImage } from "./geminiImageExecution";
 
-export type GraphNodeStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled" | "blocked";
+export type GraphNodeStatus = "pending" | "running" | "succeeded" | "failed" | "cancelled" | "blocked" | "interrupted";
 
 export interface GraphNodeRecord {
   nodeId: string;
@@ -15,7 +15,7 @@ export interface GraphNodeRecord {
 
 export interface GraphExecutionSnapshot {
   graphId: string;
-  status: "running" | "succeeded" | "failed" | "cancelled";
+  status: "running" | "succeeded" | "failed" | "cancelled" | "interrupted";
   progress: number;
   nodes: GraphNodeRecord[];
   logs: string[];
