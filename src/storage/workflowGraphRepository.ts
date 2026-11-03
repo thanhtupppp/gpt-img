@@ -22,21 +22,49 @@ export class WorkflowGraphRepositoryError extends Error {
 export function validateStoredWorkflowGraph(value: unknown): value is StoredWorkflowGraph {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const item = value as Record<string, unknown>;
-  if (typeof item.id !== "string" || !item.id.trim() ||
-      typeof item.name !== "string" || !item.name.trim() ||
-      typeof item.description !== "string" ||
-      typeof item.version !== "string" || !item.version.trim() ||
-      typeof item.createdAt !== "string" || !Number.isFinite(Date.parse(item.createdAt)) ||
-      typeof item.updatedAt !== "string" || !Number.isFinite(Date.parse(item.updatedAt))) return false;
+  if (
+    typeof item.id !== "string" || !item.id.trim() ||
+    typeof item.name !== "string" || !item.name.trim() ||
+    typeof item.description !== "string" ||
+    typeof item.version !== "string" || !item.version.trim() ||
+    typeof item.createdAt !== "string" || !Number.isFinite(Date.parse(item.createdAt)) ||
+    typeof item.updatedAt !== "string" || !Number.isFinite(Date.parse(item.updatedAt))
+  ) return false;
+
   const graph = item.graph as WorkflowGraph | undefined;
   if (!graph || graph.schemaVersion !== "1.0.0" || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) return false;
-  if (graph.nodes.some((node) => !node || typeof node.id !== "string" || !node.id.trim() ||
+
+  const invalidNode = graph.nodes.some((node) => {
+    if (
+      !node ||
+      typeof node.id !== "string" || !node.id.trim() ||
       typeof node.commandId !== "string" || !node.commandId.trim() ||
-      !node.parameters || typeof node.parameters !== "object" || Array.isArray(node.parameters) ||
-      Object.values(node.parameters).some((v) => !(typeof v === "string" || typeof v === "boolean" || (typeof v === "number" && Number.isFinite(v))))) return false;
-  if (graph.edges.some((edge) => !edge || typeof edge.id !== "string" || !edge.id.trim() ||
-      typeof edge.from !== "string" || typeof edge.to !== "string")) return false;
-  return validateWorkflowGraph(graph).length === 0 && (() => { try { buildWorkflowExecutionPlan(graph); return true; } catch { return false; } })();
+      !node.parameters || typeof node.parameters !== "object" || Array.isArray(node.parameters)
+    ) return true;
+
+    return Object.values(node.parameters).some((parameter) =>
+      !(typeof parameter === "string" ||
+        typeof parameter === "boolean" ||
+        (typeof parameter === "number" && Number.isFinite(parameter)))
+    );
+  });
+  if (invalidNode) return false;
+
+  const invalidEdge = graph.edges.some((edge) =>
+    !edge ||
+    typeof edge.id !== "string" || !edge.id.trim() ||
+    typeof edge.from !== "string" ||
+    typeof edge.to !== "string"
+  );
+  if (invalidEdge) return false;
+
+  if (validateWorkflowGraph(graph).length !== 0) return false;
+  try {
+    buildWorkflowExecutionPlan(graph);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function listWorkflowGraphs(): Promise<StoredWorkflowGraph[]> {
