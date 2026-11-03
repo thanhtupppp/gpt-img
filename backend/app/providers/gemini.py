@@ -100,7 +100,7 @@ class GeminiImageAdapter:
                 raise GeminiAdapterError("INVALID_IMAGE_DATA", "The input image is empty.", 422)
             content.append({"type": "image", "mime_type": mime_type, "data": base64.b64encode(raw_image).decode("ascii")})
 
-        key = _api_key()
+        key = _api_key(self._workspace_id)
         body = {
             "model": model,
             "input": content if image_base64 is not None else prompt,
