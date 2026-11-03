@@ -44,7 +44,7 @@ def initialize_usage_schema() -> None:
         );
         CREATE TABLE IF NOT EXISTS workspace_usage_reservations (
             execution_id TEXT PRIMARY KEY REFERENCES bridge_executions(id) ON DELETE CASCADE,
-            workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+            workspace_id TEXT NOT NULL,
             period TEXT NOT NULL,
             reserved_units INTEGER NOT NULL CHECK(reserved_units >= 0),
             settled_units INTEGER,
