@@ -1,11 +1,12 @@
 import secrets
 
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Request, status
 
 from ..config import get_settings
+from ..security_controls import enforce_rate_limit
 
 
-def require_bridge_token(authorization: str | None = Header(default=None)) -> None:
+def require_bridge_token(request: Request, authorization: str | None = Header(default=None)) -> None:
     expected = get_settings().bridge_token
     if not expected:
         raise HTTPException(
@@ -25,3 +26,7 @@ def require_bridge_token(authorization: str | None = Header(default=None)) -> No
             detail={"code": "BRIDGE_UNAUTHORIZED", "message": "Valid bridge bearer authentication is required."},
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    enforce_rate_limit(expected, category="bridge-service")
+    request.state.audit_actor_type = "bridge_service"
+    request.state.audit_actor_identity = expected
