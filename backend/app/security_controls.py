@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from .config import get_settings
 
@@ -188,7 +188,9 @@ def list_audit_events(
     }
 
 
-router = APIRouter(prefix="/api/v1/admin/audit-logs", tags=["audit"])
+from .providers.security import require_admin
+
+router = APIRouter(prefix="/api/v1/admin/audit-logs", tags=["audit"], dependencies=[Depends(require_admin)])
 
 
 @router.get("")
@@ -197,10 +199,6 @@ def get_audit_events(
     offset: int = Query(default=0, ge=0, le=1_000_000),
     workspace_id: str | None = Query(default=None, min_length=1, max_length=64),
 ):
-    from .providers.security import require_admin
-    # Authentication is applied explicitly so this endpoint uses the same
-    # service-token boundary and rate limit as provider administration.
-    require_admin()
     return list_audit_events(limit=limit, offset=offset, workspace_id=workspace_id)
 
 
