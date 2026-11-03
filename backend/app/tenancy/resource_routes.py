@@ -14,6 +14,7 @@ from ..providers.vault import (
     workspace_credential_exists, delete_workspace_credential,
 )
 from .store import require_role
+from .usage import QuotaExceededError, get_workspace_usage, set_workspace_quota
 
 router = APIRouter(prefix="/api/v1/workspaces/{workspace_id}", tags=["workspace-resources"])
 
@@ -21,6 +22,11 @@ router = APIRouter(prefix="/api/v1/workspaces/{workspace_id}", tags=["workspace-
 class WorkspaceCredentialInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     api_key: str = Field(min_length=8, max_length=4096, repr=False)
+
+
+class WorkspaceQuotaInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    monthly_units: int | None = Field(default=None, ge=0, le=1_000_000_000)
 
 
 def _access(principal: Principal, workspace_id: UUID, role: str = "viewer") -> str:
@@ -54,6 +60,18 @@ def workspace_submit_workflow(workspace_id: UUID, payload: WorkflowSubmission,
         raise HTTPException(status_code=422, detail={"code": "INVALID_IDEMPOTENCY_KEY", "message": "Idempotency-Key must contain 1–128 characters."})
     try:
         result = submit_workspace_execution(wid, payload.graphId, payload.model_dump(by_alias=True), idempotency_key)
+    except QuotaExceededError as exc:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "WORKSPACE_QUOTA_EXCEEDED",
+                "message": "Workspace monthly workflow quota would be exceeded.",
+                "usedUnits": exc.used,
+                "reservedUnits": exc.reserved,
+                "requestedUnits": exc.requested,
+                "monthlyQuotaUnits": exc.quota,
+            },
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=409, detail={"code": "IDEMPOTENCY_CONFLICT", "message": str(exc)}) from exc
     return {**result, "message": "Workflow accepted and queued."}
@@ -76,6 +94,22 @@ def workspace_cancel_execution(workspace_id: UUID, execution_id: UUID,
     if not request_execution_cancel(str(execution_id), wid):
         raise HTTPException(status_code=409, detail={"code": "EXECUTION_NOT_CANCELLABLE", "message": "Execution is missing or already terminal."})
     return {"executionId": str(execution_id), "cancellationRequested": True}
+
+
+@router.get("/usage")
+def workspace_usage(workspace_id: UUID, principal: Principal = Depends(require_user)):
+    wid = _access(principal, workspace_id)
+    return get_workspace_usage(wid)
+
+
+@router.put("/usage/quota")
+def workspace_update_quota(
+    workspace_id: UUID,
+    payload: WorkspaceQuotaInput,
+    principal: Principal = Depends(require_user),
+):
+    wid = _access(principal, workspace_id, "admin")
+    return set_workspace_quota(wid, payload.monthly_units)
 
 
 @router.get("/providers")
