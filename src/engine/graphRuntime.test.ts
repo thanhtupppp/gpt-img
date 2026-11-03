@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import "fake-indexeddb/auto";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { closeDatabaseForTests } from "../storage/database";
 import type { WorkflowStep } from "../domain/types";
 import type { WorkflowGraph } from "./workflowGraph";
 import { demoGraphAdapter } from "./graphAdapters";
@@ -12,6 +14,10 @@ const graph = (ids: string[], edges: Array<[string, string]>): WorkflowGraph => 
 });
 
 describe("hybrid workflow graph runtime", () => {
+  afterEach(async () => {
+    await closeDatabaseForTests();
+    indexedDB.deleteDatabase("piecs-library");
+  });
   it("executes sequential nodes, parallel branches, and joins in dependency order", async () => {
     const input = graph(
       ["source", "branch-a", "branch-b", "join"],
@@ -106,7 +112,7 @@ describe("hybrid workflow graph runtime", () => {
       id: "image",
       name: "Image adapter",
       async executeStep() {
-        return { message: "created image", image: { data: "private-image-bytes", mimeType: "image/png" } };
+        return { message: "created image", image: { data: "cHJpdmF0ZS1pbWFnZS1ieXRlcw==", mimeType: "image/png" } };
       },
     };
     const result = await executeWorkflowGraph(graph(["image"], []), adapter, {
@@ -114,7 +120,7 @@ describe("hybrid workflow graph runtime", () => {
       isCancelRequested: async () => false,
     });
     expect(result.status).toBe("succeeded");
-    expect(JSON.stringify(persisted)).not.toContain("private-image-bytes");
+    expect(JSON.stringify(persisted)).not.toContain("cHJpdmF0ZS1pbWFnZS1ieXRlcw==");
   });
 
   it("rejects invalid concurrency values", async () => {
