@@ -152,6 +152,7 @@ export function JsonStudio({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
             <button type="button" onClick={validate} disabled={!source.trim()} className="rounded-xl border border-line px-4 py-2.5 text-xs text-slate-300 disabled:opacity-40">Validate JSON</button>
             <button type="button" onClick={() => { if (window.confirm("Xác nhận nhập dữ liệu vào thư viện? Bản ghi trùng ID sẽ bị từ chối; dữ liệu hiện tại không bị ghi đè.")) void importBackup(); }} disabled={!source.trim() || busy} className="rounded-xl bg-indigo-400 px-4 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-40">{busy ? "Importing..." : "Import to library"}</button>
           </div>
+          </div>
           {showPreview && <div className="overflow-hidden rounded-xl border border-line bg-[#090d16]"><div className="border-b border-line px-4 py-2 text-xs text-slate-400">JSON preview · read only</div><pre className="max-h-[520px] overflow-auto p-4 text-xs leading-5 text-slate-300">{(() => { try { return JSON.stringify(JSON.parse(source), null, 2); } catch { return "JSON chưa hợp lệ. Hãy sửa cú pháp trước khi xem trước."; } })()}</pre></div>}
         </div>
         <aside className="space-y-3">
