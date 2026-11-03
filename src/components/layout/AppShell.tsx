@@ -1,12 +1,13 @@
 import {useState,type ReactNode} from "react";
 import {Activity, Command, FileJson, Grid2X2, Heart, Image as ImageIcon, Layers3, Menu, Settings, Sparkles, Workflow, X} from "lucide-react";
 
-export type AppPage = "Overview" | "Template Library" | "Workflows" | "AI Workflow Engine" | "Command Library" | "JSON Studio" | "Favorites" | "Settings";
+export type AppPage = "Overview" | "Template Library" | "Workflows" | "AI Workflow Engine" | "Image Studio" | "Command Library" | "JSON Studio" | "Favorites" | "Settings";
 const navigation = [
   {label:"Overview" as const, icon:Grid2X2},
   {label:"Template Library" as const, icon:ImageIcon},
   {label:"Workflows" as const, icon:Workflow},
   {label:"AI Workflow Engine" as const, icon:Activity},
+  {label:"Image Studio" as const, icon:ImageIcon},
   {label:"Command Library" as const, icon:Command},
   {label:"JSON Studio" as const, icon:FileJson},
   {label:"Favorites" as const, icon:Heart},

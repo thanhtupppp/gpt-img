@@ -135,3 +135,25 @@ test("JSON Studio refuses to import workflow IDs that already exist", async ({ p
   await expect(page.getByRole("alert")).toContainText("already exists");
   await expect(page.getByRole("alert")).toContainText("nothing was imported");
 });
+
+test("Image Studio is accessible and validates a prompt before generation", async ({ page }) => {
+  await page.getByRole("button", { name: "Image Studio", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Image Studio", level: 1 })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Tạo ảnh" })).toBeDisabled();
+  await page.getByLabel("Prompt").fill("A premium product photo on a clean studio background");
+  await expect(page.getByRole("button", { name: "Tạo ảnh" })).toBeEnabled();
+  await expect(page.getByText(/Không cần nhập API Key/)).toBeVisible();
+});
+
+test("Image Studio rejects unsupported and oversized reference images", async ({ page }) => {
+  await page.getByRole("button", { name: "Image Studio", exact: true }).click();
+  const fileInput = page.getByLabel("Chọn ảnh tham chiếu");
+  await fileInput.setInputFiles({ name: "bad.gif", mimeType: "image/gif", buffer: Buffer.from("GIF89a") });
+  await expect(page.getByRole("alert")).toContainText("Chỉ hỗ trợ ảnh PNG, JPEG hoặc WebP");
+  await fileInput.setInputFiles({
+    name: "large.png",
+    mimeType: "image/png",
+    buffer: Buffer.alloc(10 * 1024 * 1024 + 1),
+  });
+  await expect(page.getByRole("alert")).toContainText("vượt quá 10 MB");
+});
