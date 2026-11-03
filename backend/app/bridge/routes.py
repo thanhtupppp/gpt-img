@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .security import require_bridge_token
-from .store import get_execution, get_package, save_package, submit_execution
+from .store import get_package, save_package, submit_execution
+from .worker_store import get_worker_execution, request_execution_cancel
 
 router = APIRouter(
     prefix="/api/v1/bridge",
@@ -132,7 +133,13 @@ class WorkflowSubmission(BaseModel):
 
 @router.get("/capabilities")
 def get_bridge_capabilities():
-    """Describe implemented Bridge APIs; queued submissions await a runtime worker."""
+    """Advertise worker support only after the separately deployed worker is configured."""
+    from ..config import get_settings
+    settings = get_settings()
+    storage_configured = all((
+        settings.asset_s3_endpoint, settings.asset_s3_bucket,
+        settings.asset_s3_access_key, settings.asset_s3_secret_key,
+    ))
     return {
         "service": "piecs-bridge",
         "api_version": "v1",
@@ -143,7 +150,9 @@ def get_bridge_capabilities():
             "prompt_package_export": True,
             "workflow_submission": True,
             "execution_status": True,
-            "workflow_execution_worker": False,
+            "workflow_execution_worker": storage_configured,
+            "workflow_asset_storage": storage_configured,
+            "workflow_cancellation": True,
             "webhooks": False,
         },
     }
@@ -173,12 +182,19 @@ def submit_workflow(
         result = submit_execution(payload.graphId, payload.model_dump(by_alias=True), idempotency_key)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail={"code": "IDEMPOTENCY_CONFLICT", "message": str(exc)}) from exc
-    return {**result, "message": "Workflow accepted and queued. Execution requires an enabled runtime worker."}
+    return {**result, "message": "Workflow accepted and queued."}
 
 
 @router.get("/executions/{execution_id}")
 def get_workflow_execution(execution_id: UUID):
-    result = get_execution(str(execution_id))
+    result = get_worker_execution(str(execution_id))
     if result is None:
         raise HTTPException(status_code=404, detail={"code": "EXECUTION_NOT_FOUND", "message": "Workflow execution was not found."})
     return result
+
+
+@router.post("/executions/{execution_id}/cancel", status_code=status.HTTP_202_ACCEPTED)
+def cancel_workflow_execution(execution_id: UUID):
+    if not request_execution_cancel(str(execution_id)):
+        raise HTTPException(status_code=409, detail={"code": "EXECUTION_NOT_CANCELLABLE", "message": "Execution is missing or already terminal."})
+    return {"executionId": str(execution_id), "cancellationRequested": True}
