@@ -14,7 +14,11 @@ const workflow: PiecsWorkflow = {
 };
 
 describe("workflow transfer", () => {
-  it("exports and parses a workflow bundle", () => {
+  it("exports a timestamped PIECS package and parses it", () => {
+    const exported = JSON.parse(exportWorkflows([workflow])) as { system: string; schemaVersion: string; exportedAt: string };
+    expect(exported.system).toBe("PIECS");
+    expect(exported.schemaVersion).toBe(PIECS_SCHEMA_VERSION);
+    expect(Number.isNaN(Date.parse(exported.exportedAt))).toBe(false);
     expect(parseWorkflowImport(exportWorkflows([workflow]))).toEqual([workflow]);
   });
 

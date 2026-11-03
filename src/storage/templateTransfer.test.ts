@@ -9,7 +9,11 @@ const fixture: PiecsTemplate = {
 };
 
 describe("template transfer", () => {
-  it("round-trips custom templates", () => {
+  it("round-trips custom templates and emits a timestamped PIECS package", () => {
+    const exported = JSON.parse(exportTemplates([fixture])) as { system: string; schemaVersion: string; exportedAt: string };
+    expect(exported.system).toBe("PIECS");
+    expect(exported.schemaVersion).toBe(PIECS_SCHEMA_VERSION);
+    expect(Number.isNaN(Date.parse(exported.exportedAt))).toBe(false);
     expect(parseTemplateImport(exportTemplates([fixture]))).toEqual([fixture]);
   });
   it("rejects unknown package sources and unsupported schema versions", () => {
