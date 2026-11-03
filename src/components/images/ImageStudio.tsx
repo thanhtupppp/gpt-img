@@ -95,8 +95,11 @@ export function ImageStudio() {
       const binary = atob(response.image.data);
       const bytes = new Uint8Array(binary.length);
       for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-      const blob = new Blob([bytes], { type: response.image.mime_type || "image/png" });
-      if (!blob.type.startsWith("image/")) throw new Error("Gateway trả về định dạng kết quả không hợp lệ.");
+      const outputType = response.image.mime_type || "image/png";
+      if (!(["image/png", "image/jpeg", "image/webp"] as string[]).includes(outputType)) {
+        throw new Error("Gateway trả về định dạng ảnh không được hỗ trợ.");
+      }
+      const blob = new Blob([bytes], { type: outputType });
       setResultUrl(URL.createObjectURL(blob));
       setResultMime(blob.type);
       setConnection("ready");
@@ -148,7 +151,7 @@ export function ImageStudio() {
         </div>
 
         <div className="min-h-[420px] rounded-2xl border border-line bg-panel/70 p-5">
-          <div className="mb-4 flex items-center justify-between"><div><h3 className="font-semibold">Kết quả</h3><p className="mt-1 text-xs text-slate-500">Preview ảnh được tạo hoặc chỉnh sửa</p></div>{resultUrl && <a href={resultUrl} download={`piecs-${Date.now()}.png`} className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-slate-300 hover:bg-white/5"><Download size={14}/> Tải ảnh</a>}</div>
+          <div className="mb-4 flex items-center justify-between"><div><h3 className="font-semibold">Kết quả</h3><p className="mt-1 text-xs text-slate-500">Preview ảnh được tạo hoặc chỉnh sửa</p></div>{resultUrl && <a href={resultUrl} download={`piecs-${Date.now()}.${resultMime === "image/jpeg" ? "jpg" : resultMime === "image/webp" ? "webp" : "png"}`} className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-slate-300 hover:bg-white/5"><Download size={14}/> Tải ảnh</a>}</div>
           {resultUrl ? <div className="flex min-h-[340px] items-center justify-center overflow-hidden rounded-xl border border-line bg-[#090d16] p-2"><img src={resultUrl} alt="Ảnh kết quả Gemini" className="max-h-[560px] max-w-full object-contain"/></div> : <div className="flex min-h-[340px] flex-col items-center justify-center rounded-xl border border-dashed border-line bg-[#090d16]/50 text-center"><Upload size={28} className="mb-3 text-slate-600"/><p className="text-sm text-slate-400">Ảnh kết quả sẽ hiển thị tại đây</p><p className="mt-1 text-xs text-slate-600">Nhập prompt để bắt đầu</p></div>}
           {resultUrl && <p className="mt-3 text-[11px] text-slate-500">Định dạng: {resultMime} · Tải xuống để lưu trữ lâu dài.</p>}
         </div>
