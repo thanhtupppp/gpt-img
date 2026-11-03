@@ -51,6 +51,12 @@ export async function executeEngineJob(
         progress: Math.round(((index + 1) / job.steps.length) * 100),
         logs: [...job.logs, result.message],
       };
+      if (await hooks.isCancelRequested(job.id)) {
+        controller.abort();
+        job = { ...job, status: "cancelled", cancelRequested: true, finishedAt: now(), logs: [...job.logs, "Execution cancelled by user."] };
+        await persist();
+        return job;
+      }
       await persist();
     }
     job = { ...job, status: "succeeded", progress: 100, finishedAt: now(), logs: [...job.logs, "Workflow completed."] };

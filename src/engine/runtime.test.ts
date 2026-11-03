@@ -66,6 +66,16 @@ describe("PIECS Engine runtime", () => {
     expect(result.progress).toBe(0);
   });
 
+  it("honors cancellation requested while an adapter step is in progress", async () => {
+    let checks = 0;
+    const result = await executeEngineJob(makeJob(), adapter, {
+      save: async () => undefined,
+      isCancelRequested: async () => { checks += 1; return checks > 1; },
+    });
+    expect(result.status).toBe("cancelled");
+    expect(result.progress).toBe(50);
+  });
+
   it("rejects retrying a successful job", () => {
     expect(() => retryEngineJob({ ...makeJob(), status: "succeeded" })).toThrow("Only failed or cancelled");
   });

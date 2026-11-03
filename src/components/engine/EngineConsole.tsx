@@ -52,7 +52,7 @@ export function EngineConsole() {
     return () => { active = false; };
   }, []);
 
-  const run = async (workflow: PiecsWorkflow, existing?: EngineJob) => {
+  const run = async (workflow: Pick<PiecsWorkflow, "id" | "name" | "steps">, existing?: EngineJob) => {
     if (busy) return;
     setBusy(true);
     setError("");
@@ -81,15 +81,10 @@ export function EngineConsole() {
   };
 
   const retry = async (job: EngineJob) => {
-    const workflow = workflows.find((item) => item.id === job.workflowId);
-    if (!workflow) {
-      setError("Workflow gốc không còn tồn tại nên không thể retry.");
-      return;
-    }
     try {
       const retried = retryEngineJob(job);
       await saveEngineJob(retried);
-      await run(workflow, retried);
+      await run({ id: job.workflowId, name: job.workflowName, steps: job.steps }, retried);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể retry job.");
     }
