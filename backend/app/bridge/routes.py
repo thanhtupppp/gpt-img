@@ -19,8 +19,10 @@ PACKAGE_VERSION = "1.0.0"
 MAX_PACKAGE_BYTES = 5 * 1024 * 1024
 MAX_GRAPH_BYTES = 1024 * 1024
 SECRET_FIELD_NAMES = {
-    "api_key", "apikey", "admin_token", "bridge_token", "piecs_admin_token",
-    "piecs_bridge_token", "credential", "credentials", "provider_secret",
+    "api_key", "apikey", "admin_token", "admintoken", "bridge_token", "bridgetoken",
+    "piecs_admin_token", "piecsadmintoken", "piecs_bridge_token", "piecsbridgetoken",
+    "credential", "credentials", "provider_secret", "providercredential",
+    "providercredentials", "private_key", "privatekey", "client_secret", "clientsecret",
 }
 
 
