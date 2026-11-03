@@ -154,29 +154,44 @@ def get_workspace_package(workspace_id: str, package_id: str) -> dict[str, Any] 
 
 def submit_workspace_execution(workspace_id: str, graph_id: str, payload: dict[str, Any],
                                idempotency_key: str | None) -> dict[str, Any]:
-    initialize_bridge_store()
+    # Initialize all required tables before opening the submission transaction.
+    from ..tenancy.usage import initialize_usage_schema, reserve_usage_in_transaction
+
+    initialize_usage_schema()
+    nodes = payload.get("graph", {}).get("nodes", [])
+    if not isinstance(nodes, list) or not nodes:
+        raise ValueError("Workflow graph must contain at least one node.")
     serialized = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
     scoped_key = f"{workspace_id}:{idempotency_key}" if idempotency_key else None
-    with closing(_connect()) as connection, connection:
-        if scoped_key:
-            existing = connection.execute(
-                "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE idempotency_key=? AND workspace_id=?",
-                (scoped_key, workspace_id),
+    with closing(_connect()) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        try:
+            if scoped_key:
+                existing = connection.execute(
+                    "SELECT id, graph_id, status, created_at, updated_at FROM bridge_executions WHERE idempotency_key=? AND workspace_id=?",
+                    (scoped_key, workspace_id),
+                ).fetchone()
+                if existing:
+                    if existing["graph_id"] != graph_id:
+                        raise ValueError("Idempotency key was already used for a different graph.")
+                    connection.commit()
+                    return _execution_row(existing)
+
+            execution_id = str(uuid4())
+            connection.execute(
+                "INSERT INTO bridge_executions (id,graph_id,status,payload,idempotency_key,workspace_id) VALUES (?,?,'queued',?,?,?)",
+                (execution_id, graph_id, serialized, scoped_key, workspace_id),
+            )
+            reserve_usage_in_transaction(connection, execution_id, workspace_id, len(nodes))
+            row = connection.execute(
+                "SELECT id,graph_id,status,created_at,updated_at FROM bridge_executions WHERE id=? AND workspace_id=?",
+                (execution_id, workspace_id),
             ).fetchone()
-            if existing:
-                if existing["graph_id"] != graph_id:
-                    raise ValueError("Idempotency key was already used for a different graph.")
-                return _execution_row(existing)
-        execution_id = str(uuid4())
-        connection.execute(
-            "INSERT INTO bridge_executions (id,graph_id,status,payload,idempotency_key,workspace_id) VALUES (?,?,'queued',?,?,?)",
-            (execution_id, graph_id, serialized, scoped_key, workspace_id),
-        )
-        row = connection.execute(
-            "SELECT id,graph_id,status,created_at,updated_at FROM bridge_executions WHERE id=? AND workspace_id=?",
-            (execution_id, workspace_id),
-        ).fetchone()
-    return _execution_row(row)
+            connection.commit()
+            return _execution_row(row)
+        except Exception:
+            connection.rollback()
+            raise
 
 
 def get_workspace_execution(workspace_id: str, execution_id: str) -> dict[str, Any] | None:

@@ -28,6 +28,18 @@ def _iso(value: datetime) -> str:
     return value.isoformat(timespec="seconds")
 
 
+def _usage_helpers():
+    from ..tenancy.usage import initialize_usage_schema, settle_usage_in_transaction
+    return initialize_usage_schema, settle_usage_in_transaction
+
+
+def _started_units(states: dict[str, dict[str, Any]]) -> int:
+    return sum(
+        1 for state in states.values()
+        if isinstance(state, dict) and state.get("startedAt")
+    )
+
+
 def initialize_worker_schema() -> None:
     initialize_bridge_store()
     with closing(_connect()) as db:
@@ -53,13 +65,16 @@ def initialize_worker_schema() -> None:
             db.execute("CREATE TABLE IF NOT EXISTS bridge_workers (worker_id TEXT PRIMARY KEY, heartbeat_at TEXT NOT NULL)")
             db.execute("COMMIT")
         except Exception:
-            db.execute("ROLLBACK")
+            if db.in_transaction:
+                db.execute("ROLLBACK")
             raise
 
 
 def claim_next_execution(worker_id: str, lease_seconds: int = 90) -> dict[str, Any] | None:
-    """Atomically claim the oldest queued record. Expired running records are never replayed."""
+    """Atomically claim the oldest queued record. Expired leases are never replayed."""
     initialize_worker_schema()
+    initialize_usage_schema, settle_usage_in_transaction = _usage_helpers()
+    initialize_usage_schema()
     now = _now()
     expires = _iso(now + timedelta(seconds=lease_seconds))
     with closing(_connect()) as db:
@@ -82,6 +97,12 @@ def claim_next_execution(worker_id: str, lease_seconds: int = 90) -> dict[str, A
                        WHERE id=? AND status='running'""",
                     (json.dumps(states, separators=(",", ":")), _iso(now), _iso(now), row["id"]),
                 )
+                # Started nodes may already have incurred provider usage. Settle this
+                # conservative upper bound when a worker lease expires.
+                settle_usage_in_transaction(
+                    db, row["id"], _started_units(states), uncertain=True
+                )
+
             row = db.execute(
                 "SELECT id, graph_id, payload, attempts, workspace_id FROM bridge_executions WHERE status='queued' ORDER BY created_at, id LIMIT 1"
             ).fetchone()
@@ -115,19 +136,33 @@ def claim_next_execution(worker_id: str, lease_seconds: int = 90) -> dict[str, A
 def register_worker(worker_id: str) -> None:
     initialize_worker_schema()
     with closing(_connect()) as db:
-        db.execute("INSERT INTO bridge_workers(worker_id, heartbeat_at) VALUES (?, ?) ON CONFLICT(worker_id) DO UPDATE SET heartbeat_at=excluded.heartbeat_at", (worker_id, _iso(_now())))
+        db.execute(
+            """INSERT INTO bridge_workers(worker_id, heartbeat_at) VALUES (?, ?)
+               ON CONFLICT(worker_id) DO UPDATE SET heartbeat_at=excluded.heartbeat_at""",
+            (worker_id, _iso(_now())),
+        )
+
 
 def worker_available(max_age_seconds: int = 90) -> bool:
     initialize_worker_schema()
     cutoff = _iso(_now() - timedelta(seconds=max_age_seconds))
     with closing(_connect()) as db:
-        row = db.execute("SELECT 1 FROM bridge_workers WHERE heartbeat_at >= ? LIMIT 1", (cutoff,)).fetchone()
+        row = db.execute(
+            "SELECT 1 FROM bridge_workers WHERE heartbeat_at >= ? LIMIT 1",
+            (cutoff,),
+        ).fetchone()
     return row is not None
+
 
 def heartbeat_worker(worker_id: str) -> None:
     initialize_worker_schema()
     with closing(_connect()) as db:
-        db.execute("UPDATE bridge_workers SET heartbeat_at=? WHERE worker_id=?", (_iso(_now()), worker_id))
+        db.execute(
+            "UPDATE bridge_workers SET heartbeat_at=? WHERE worker_id=?",
+            (_iso(_now()), worker_id),
+        )
+
+
 def heartbeat(execution_id: str, worker_id: str, lease_seconds: int = 90) -> bool:
     initialize_worker_schema()
     now = _now()
@@ -143,11 +178,16 @@ def heartbeat(execution_id: str, worker_id: str, lease_seconds: int = 90) -> boo
 def cancellation_requested(execution_id: str) -> bool:
     initialize_worker_schema()
     with closing(_connect()) as db:
-        row = db.execute("SELECT cancel_requested FROM bridge_executions WHERE id=?", (execution_id,)).fetchone()
+        row = db.execute(
+            "SELECT cancel_requested FROM bridge_executions WHERE id=?",
+            (execution_id,),
+        ).fetchone()
     return bool(row and row["cancel_requested"])
 
 
-def persist_node_states(execution_id: str, worker_id: str, states: dict[str, dict[str, Any]]) -> bool:
+def persist_node_states(
+    execution_id: str, worker_id: str, states: dict[str, dict[str, Any]]
+) -> bool:
     initialize_worker_schema()
     now = _iso(_now())
     with closing(_connect()) as db:
@@ -160,39 +200,79 @@ def persist_node_states(execution_id: str, worker_id: str, states: dict[str, dic
 
 
 def finish_execution(
-    execution_id: str, worker_id: str, status: str,
-    states: dict[str, dict[str, Any]], error_summary: str | None = None,
+    execution_id: str,
+    worker_id: str,
+    status: str,
+    states: dict[str, dict[str, Any]],
+    error_summary: str | None = None,
 ) -> bool:
     if status not in {"succeeded", "failed", "cancelled", "interrupted"}:
         raise ValueError("Invalid terminal execution status.")
     initialize_worker_schema()
+    initialize_usage_schema, settle_usage_in_transaction = _usage_helpers()
+    initialize_usage_schema()
     now = _iso(_now())
     with closing(_connect()) as db:
-        changed = db.execute(
-            """UPDATE bridge_executions SET status=?, node_states=?, error_summary=?,
-               worker_id=NULL, lease_expires_at=NULL, finished_at=?, updated_at=?
-               WHERE id=? AND status='running' AND worker_id=?""",
-            (status, json.dumps(states, separators=(",", ":")), error_summary, now, now, execution_id, worker_id),
-        ).rowcount
-    return changed == 1
+        db.execute("BEGIN IMMEDIATE")
+        try:
+            changed = db.execute(
+                """UPDATE bridge_executions SET status=?, node_states=?, error_summary=?,
+                   worker_id=NULL, lease_expires_at=NULL, finished_at=?, updated_at=?
+                   WHERE id=? AND status='running' AND worker_id=?""",
+                (
+                    status,
+                    json.dumps(states, separators=(",", ":")),
+                    error_summary,
+                    now,
+                    now,
+                    execution_id,
+                    worker_id,
+                ),
+            ).rowcount
+            if changed == 1:
+                settle_usage_in_transaction(db, execution_id, _started_units(states))
+            db.commit()
+            return changed == 1
+        except Exception:
+            db.rollback()
+            raise
 
 
 def request_execution_cancel(execution_id: str, workspace_id: str | None = None) -> bool:
     initialize_worker_schema()
+    initialize_usage_schema, settle_usage_in_transaction = _usage_helpers()
+    initialize_usage_schema()
     with closing(_connect()) as db:
         db.execute("BEGIN IMMEDIATE")
         try:
-            row = (db.execute("SELECT status FROM bridge_executions WHERE id=? AND workspace_id IS NULL", (execution_id,)).fetchone()
-                   if workspace_id is None else
-                   db.execute("SELECT status FROM bridge_executions WHERE id=? AND workspace_id=?", (execution_id, workspace_id)).fetchone())
+            row = (
+                db.execute(
+                    "SELECT status FROM bridge_executions WHERE id=? AND workspace_id IS NULL",
+                    (execution_id,),
+                ).fetchone()
+                if workspace_id is None
+                else db.execute(
+                    "SELECT status FROM bridge_executions WHERE id=? AND workspace_id=?",
+                    (execution_id, workspace_id),
+                ).fetchone()
+            )
             if row is None or row["status"] not in {"queued", "running"}:
                 db.execute("ROLLBACK")
                 return False
             now = _iso(_now())
             if row["status"] == "queued":
-                db.execute("UPDATE bridge_executions SET status='cancelled', cancel_requested=1, finished_at=?, updated_at=? WHERE id=? AND status='queued'", (now, now, execution_id))
+                db.execute(
+                    """UPDATE bridge_executions SET status='cancelled', cancel_requested=1,
+                       finished_at=?, updated_at=? WHERE id=? AND status='queued'""",
+                    (now, now, execution_id),
+                )
+                settle_usage_in_transaction(db, execution_id, 0)
             else:
-                db.execute("UPDATE bridge_executions SET cancel_requested=1, updated_at=? WHERE id=? AND status='running'", (now, execution_id))
+                db.execute(
+                    """UPDATE bridge_executions SET cancel_requested=1, updated_at=?
+                       WHERE id=? AND status='running'""",
+                    (now, execution_id),
+                )
             db.execute("COMMIT")
             return True
         except Exception:
@@ -200,14 +280,18 @@ def request_execution_cancel(execution_id: str, workspace_id: str | None = None)
                 db.execute("ROLLBACK")
             raise
 
-def get_worker_execution(execution_id: str, workspace_id: str | None = None) -> dict[str, Any] | None:
+
+def get_worker_execution(
+    execution_id: str, workspace_id: str | None = None
+) -> dict[str, Any] | None:
     initialize_worker_schema()
     with closing(_connect()) as db:
         row = db.execute(
             """SELECT id, graph_id, status, attempts, node_states, started_at,
                finished_at, error_summary, created_at, updated_at
-               FROM bridge_executions WHERE id=? AND workspace_id IS NULL""" if workspace_id is None else
-            """SELECT id, graph_id, status, attempts, node_states, started_at,
+               FROM bridge_executions WHERE id=? AND workspace_id IS NULL"""
+            if workspace_id is None
+            else """SELECT id, graph_id, status, attempts, node_states, started_at,
                finished_at, error_summary, created_at, updated_at
                FROM bridge_executions WHERE id=? AND workspace_id=?""",
             (execution_id,) if workspace_id is None else (execution_id, workspace_id),
@@ -215,8 +299,14 @@ def get_worker_execution(execution_id: str, workspace_id: str | None = None) -> 
     if row is None:
         return None
     return {
-        "executionId": row["id"], "graphId": row["graph_id"], "status": row["status"],
-        "attempts": row["attempts"], "nodes": json.loads(row["node_states"] or "{}"),
-        "startedAt": row["started_at"], "finishedAt": row["finished_at"],
-        "error": row["error_summary"], "createdAt": row["created_at"], "updatedAt": row["updated_at"],
+        "executionId": row["id"],
+        "graphId": row["graph_id"],
+        "status": row["status"],
+        "attempts": row["attempts"],
+        "nodes": json.loads(row["node_states"] or "{}"),
+        "startedAt": row["started_at"],
+        "finishedAt": row["finished_at"],
+        "error": row["error_summary"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
     }
