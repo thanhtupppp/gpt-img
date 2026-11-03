@@ -13,7 +13,7 @@ import {
 import { listTemplates } from "./templateRepository";
 import { listWorkflows } from "./workflowRepository";
 import { createAsset } from "./assetRepository";
-import { listWorkflowGraphs, saveWorkflowGraph } from "./workflowGraphRepository";
+import { listWorkflowGraphs } from "./workflowGraphRepository";
 
 const template: PiecsTemplate = {
   id: "TPL-CUSTOM-1",
@@ -101,7 +101,6 @@ describe("Prompt Package", () => {
 
   it("rejects cross-entity collisions without partially importing either type", async () => {
     const value = createPromptPackage({ templates: [template], workflows: [workflow] });
-    // Seed a workflow collision while leaving the template ID unused.
     await importPromptPackage(createPromptPackage({ templates: [], workflows: [workflow] }));
     await expect(importPromptPackage(value)).rejects.toThrow("already exists");
     expect(await listTemplates()).toEqual([]);
