@@ -24,8 +24,6 @@ jobs:
         run: npm run typecheck
       - name: Unit tests
         run: npm test
-      - name: Install browser test runner
-        run: npm install --no-save @playwright/test
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Browser acceptance tests
