@@ -188,7 +188,7 @@ export function JsonStudio({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => { if (!dirty || window.confirm("Thay thế nội dung chưa lưu bằng dữ liệu trong thư viện?")) void loadBackup(); }} className="rounded-lg border border-line px-3 py-2 text-xs text-slate-300">Load library JSON</button>
           <button type="button" onClick={exportBackup} disabled={busy} className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-slate-300"><Download size={13}/> Export backup</button>
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-slate-300"><FileUp size={13}/> Open JSON<input type="file" accept="application/json,.json" className="hidden" onChange={(event) => { void onFile(event.target.files?.[0]); event.target.value = ""; }}/></label>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-slate-300"><FileUp size={13}/> Open JSON<input type="file" aria-label="Open PIECS JSON backup file" accept="application/json,.json" className="hidden" onChange={(event) => { void onFile(event.target.files?.[0]); event.target.value = ""; }}/></label>
         </div>
       </div>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,.8fr)]">
@@ -212,8 +212,8 @@ export function JsonStudio({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
           <div className="rounded-2xl border border-line bg-panel/60 p-4">
             <h3 className="text-sm font-semibold">Validation report</h3>
             <p className="mt-1 text-xs leading-5 text-slate-500">Chỉ nhập dữ liệu đúng schema hiện tại. Import bị từ chối nếu có ID trùng; dữ liệu hiện tại không bị ghi đè.</p>
-            {message && <p role="status" className="mt-4 rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3 text-xs text-emerald-200">{message}</p>}
-            {error && <p role="alert" className="mt-4 rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-200">{error}</p>}
+            {message && <p role="status" aria-live="polite" className="mt-4 rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3 text-xs text-emerald-200">{message}</p>}
+            {error && <p role="alert" aria-live="assertive" className="mt-4 rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-200">{error}</p>}
             {issues.length > 0 && <ul className="mt-4 space-y-2">{issues.map((issue, index) => <li key={index} className="rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-200">{issue}</li>)}</ul>}
             {!message && !error && issues.length === 0 && <p className="mt-4 text-xs text-slate-600">Chưa có báo cáo. Nhấn Validate JSON để kiểm tra.</p>}
           </div>
