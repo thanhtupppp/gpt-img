@@ -57,6 +57,42 @@ export async function getWorkflow(id: string): Promise<PiecsWorkflow | undefined
   return result;
 }
 
+export async function importWorkflows(values: unknown[]): Promise<PiecsWorkflow[]> {
+  if (!Array.isArray(values) || values.some((value) => !isPiecsWorkflow(value))) {
+    throw new WorkflowRepositoryError("Import contains an invalid workflow.");
+  }
+  const workflows = values as PiecsWorkflow[];
+  const incomingIds = new Set<string>();
+  for (const workflow of workflows) {
+    if (incomingIds.has(workflow.id)) {
+      throw new WorkflowRepositoryError(`Duplicate workflow ID in import: ${workflow.id}`);
+    }
+    incomingIds.add(workflow.id);
+  }
+
+  const database = await openDatabase();
+  const transaction = database.transaction("workflows", "readwrite");
+  const completed = transactionComplete(transaction);
+  const store = transaction.objectStore("workflows");
+  try {
+    const existing = await requestResult(store.getAll()) as PiecsWorkflow[];
+    const existingIds = new Set(existing.map((item) => item.id));
+    const collision = workflows.find((item) => existingIds.has(item.id));
+    if (collision) {
+      transaction.abort();
+      await completed.catch(() => undefined);
+      throw new WorkflowRepositoryError(`Workflow ID ${collision.id} already exists; nothing was imported.`);
+    }
+    for (const workflow of workflows) store.add(workflow);
+    await completed;
+    return workflows;
+  } catch (error) {
+    await completed.catch(() => undefined);
+    if (error instanceof WorkflowRepositoryError) throw error;
+    throw new WorkflowRepositoryError(error instanceof Error ? error.message : "Unable to import workflows.");
+  }
+}
+
 export async function deleteWorkflow(id: string): Promise<void> {
   const database = await openDatabase();
   const transaction = database.transaction("workflows", "readwrite");

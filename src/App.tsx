@@ -13,12 +13,14 @@ import {TemplateCard} from "./components/templates/TemplateCard";
 import {TemplateDetail} from "./components/templates/TemplateDetail";
 import {CommandLibrary} from "./components/commands/CommandLibrary";
 import {WorkflowBuilder} from "./components/workflows/WorkflowBuilder";
+import {JsonStudio} from "./components/json/JsonStudio";
 
 const pageCopy:Record<AppPage,{title:string;description:string}> = {
   "Overview":{title:"Creative workspace",description:"Your PIECS workspace at a glance."},
   "Template Library":{title:"Template Library",description:"Khám phá, tìm kiếm và tái sử dụng các preset chỉnh sửa ảnh AI theo chuẩn PIECS."},
   "Workflows":{title:"Workflow Library",description:"Quản lý các quy trình chỉnh sửa nhiều bước theo chuẩn PIECS."},
   "Command Library":{title:"Command Library",description:"Explore the 80 standardized PIECS commands across eight functional modules."},
+  "JSON Studio":{title:"JSON Studio",description:"Validate, import, export and back up your local PIECS library data."},
   "Favorites":{title:"Your Favorites",description:"Các template anh đã lưu để truy cập nhanh."},
   "Settings":{title:"Settings",description:"Thông tin và tùy chọn của PIECS Library."},
 };
@@ -72,6 +74,7 @@ export default function App(){
       {page==="Settings" ? <section className="max-w-2xl rounded-2xl border border-line bg-panel p-6"><h2 className="font-semibold">Library preferences</h2><p className="mt-2 text-sm leading-6 text-slate-400">Dữ liệu thư viện và danh sách yêu thích được lưu cục bộ bằng IndexedDB trên thiết bị này. Anh có thể tạo, sửa, xóa template cá nhân và xuất/nhập JSON để sao lưu thủ công; không có tài khoản hoặc đồng bộ cloud.</p><div className="mt-5 rounded-xl bg-slate-900 p-4 text-xs text-slate-400">PIECS Core · schema v1.0.0 · Master profile · 80 registered commands</div></section> :
       page==="Command Library" ? <CommandLibrary copied={copied} onCopy={copy}/> :
       page==="Workflows" ? <WorkflowBuilder copied={copied} onCopy={copy}/> :
+      page==="JSON Studio" ? <JsonStudio/> :
       page==="Overview" ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(library.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Planned reference pipelines"/></div> :
       <>
         {page==="Template Library"&&<div className="grid gap-3 sm:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(templates.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Reference pipelines"/></div>}

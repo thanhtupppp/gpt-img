@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
 import { PIECS_SCHEMA_VERSION, type PiecsWorkflow } from "../domain/types";
 import { closeDatabaseForTests } from "./database";
-import { cloneWorkflow, deleteWorkflow, listWorkflows, saveWorkflow, WorkflowRepositoryError } from "./workflowRepository";
+import { cloneWorkflow, deleteWorkflow, importWorkflows, listWorkflows, saveWorkflow, WorkflowRepositoryError } from "./workflowRepository";
 
 const workflow: PiecsWorkflow = {
   id: "WORKFLOW-001",
@@ -50,6 +50,15 @@ describe("workflow repository", () => {
     await saveWorkflow(workflow);
     await expect(cloneWorkflow("missing", "WORKFLOW-002")).rejects.toBeInstanceOf(WorkflowRepositoryError);
     await expect(cloneWorkflow(workflow.id, workflow.id)).rejects.toBeInstanceOf(WorkflowRepositoryError);
+  });
+
+  it("imports a workflow batch atomically and rejects ID collisions", async () => {
+    const second = { ...workflow, id: "WORKFLOW-002", name: "Second workflow" };
+    await expect(importWorkflows([workflow, second])).resolves.toHaveLength(2);
+    expect(await listWorkflows()).toHaveLength(2);
+    await expect(importWorkflows([{ ...second, id: "WORKFLOW-003" }, second])).rejects.toBeInstanceOf(WorkflowRepositoryError);
+    await expect(importWorkflows([workflow])).rejects.toBeInstanceOf(WorkflowRepositoryError);
+    expect(await listWorkflows()).toHaveLength(2);
   });
 
   it("deletes a workflow", async () => {

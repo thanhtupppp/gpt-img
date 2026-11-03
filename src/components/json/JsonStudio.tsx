@@ -1,0 +1,164 @@
+import { useEffect, useState } from "react";
+import { Download, FileJson, FileUp, ShieldCheck } from "lucide-react";
+import { exportTemplates, parseTemplateImport } from "../../storage/templateTransfer";
+import { exportWorkflows, parseWorkflowImport } from "../../storage/workflowTransfer";
+import { importCustomTemplates, listTemplates } from "../../storage/templateRepository";
+import { importWorkflows, listWorkflows } from "../../storage/workflowRepository";
+import type { PiecsTemplate, PiecsWorkflow } from "../../domain/types";
+
+type DataKind = "templates" | "workflows";
+
+function downloadJson(filename: string, content: string) {
+  const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+export function JsonStudio() {
+  const [kind, setKind] = useState<DataKind>("templates");
+  const [source, setSource] = useState("");
+  const [issues, setIssues] = useState<string[]>([]);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [templates, setTemplates] = useState<PiecsTemplate[]>([]);
+  const [workflows, setWorkflows] = useState<PiecsWorkflow[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  const refresh = async () => {
+    const [nextTemplates, nextWorkflows] = await Promise.all([listTemplates(), listWorkflows()]);
+    setTemplates(nextTemplates);
+    setWorkflows(nextWorkflows);
+  };
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([listTemplates(), listWorkflows()])
+      .then(([nextTemplates, nextWorkflows]) => {
+        if (active) { setTemplates(nextTemplates); setWorkflows(nextWorkflows); }
+      })
+      .catch(() => { if (active) setError("Không thể đọc dữ liệu từ IndexedDB."); });
+    return () => { active = false; };
+  }, []);
+
+  const validate = () => {
+    setError("");
+    setMessage("");
+    try {
+      const count = kind === "templates"
+        ? parseTemplateImport(source).length
+        : parseWorkflowImport(source).length;
+      setIssues([]);
+      setMessage(`JSON hợp lệ · ${count} bản ghi sẵn sàng để nhập.`);
+    } catch (cause) {
+      setIssues([cause instanceof Error ? cause.message : "JSON không hợp lệ."]);
+    }
+  };
+
+  const loadBackup = async () => {
+    setError("");
+    setMessage("");
+    try {
+      const content = kind === "templates"
+        ? exportTemplates(templates.filter((item) => item.origin === "custom"))
+        : exportWorkflows(workflows);
+      setSource(content);
+      setIssues([]);
+      setMessage("Đã nạp dữ liệu hiện có vào editor.");
+    } catch {
+      setError("Không thể tạo bản sao lưu.");
+    }
+  };
+
+  const exportBackup = () => {
+    const content = kind === "templates"
+      ? exportTemplates(templates.filter((item) => item.origin === "custom"))
+      : exportWorkflows(workflows);
+    downloadJson(kind === "templates" ? "piecs-templates.json" : "piecs-workflows.json", content);
+  };
+
+  const importBackup = async () => {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      if (kind === "templates") {
+        const items = parseTemplateImport(source);
+        await importCustomTemplates(items);
+      } else {
+        const items = parseWorkflowImport(source);
+        await importWorkflows(items);
+      }
+      await refresh();
+      setIssues([]);
+      setMessage("Nhập dữ liệu thành công. Không có bản ghi hiện tại nào bị ghi đè.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể nhập dữ liệu.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onFile = async (file?: File) => {
+    if (!file) return;
+    setSource(await file.text());
+    setIssues([]);
+    setError("");
+    setMessage(`Đã đọc ${file.name}. Hãy kiểm tra JSON trước khi nhập.`);
+  };
+
+  return (
+    <section className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="mb-2 flex items-center gap-2 text-xs font-medium text-indigo-300"><FileJson size={14}/> LOCAL DATA TOOLKIT</div>
+          <h2 className="text-xl font-semibold">JSON Studio</h2>
+          <p className="mt-1 text-sm text-slate-400">Kiểm tra, sao lưu và khôi phục dữ liệu PIECS trên thiết bị này.</p>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-3 py-2 text-xs text-emerald-200"><ShieldCheck size={14}/> Local-first · No cloud upload</div>
+      </header>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-panel/60 p-4">
+        <div className="flex gap-2" role="group" aria-label="JSON data type">
+          <button type="button" aria-pressed={kind === "templates"} onClick={() => { setKind("templates"); setIssues([]); setMessage(""); setError(""); }} className={`rounded-lg px-3 py-2 text-xs ${kind === "templates" ? "bg-indigo-400 text-slate-950" : "border border-line text-slate-400"}`}>Templates ({templates.filter((item) => item.origin === "custom").length})</button>
+          <button type="button" aria-pressed={kind === "workflows"} onClick={() => { setKind("workflows"); setIssues([]); setMessage(""); setError(""); }} className={`rounded-lg px-3 py-2 text-xs ${kind === "workflows" ? "bg-indigo-400 text-slate-950" : "border border-line text-slate-400"}`}>Workflows ({workflows.length})</button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={loadBackup} className="rounded-lg border border-line px-3 py-2 text-xs text-slate-300">Load library JSON</button>
+          <button type="button" onClick={exportBackup} className="inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-slate-300"><Download size={13}/> Export backup</button>
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-2 text-xs text-slate-300"><FileUp size={13}/> Open JSON<input type="file" accept="application/json,.json" className="hidden" onChange={(event) => { void onFile(event.target.files?.[0]); event.target.value = ""; }}/></label>
+        </div>
+      </div>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,.8fr)]">
+        <div className="space-y-3">
+          <label className="block text-xs text-slate-400">JSON document
+            <textarea value={source} onChange={(event) => { setSource(event.target.value); setIssues([]); setMessage(""); setError(""); }} spellCheck={false} rows={22} placeholder="Paste a PIECS JSON backup or open a .json file..." className="mt-2 w-full rounded-xl border border-line bg-[#090d16] p-4 font-mono text-xs leading-5 text-slate-200 outline-none focus:border-indigo-400/60"/>
+          </label>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button type="button" onClick={validate} disabled={!source.trim()} className="rounded-xl border border-line px-4 py-2.5 text-xs text-slate-300 disabled:opacity-40">Validate JSON</button>
+            <button type="button" onClick={importBackup} disabled={!source.trim() || busy} className="rounded-xl bg-indigo-400 px-4 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-40">{busy ? "Importing..." : "Import to library"}</button>
+          </div>
+        </div>
+        <aside className="space-y-3">
+          <div className="rounded-2xl border border-line bg-panel/60 p-4">
+            <h3 className="text-sm font-semibold">Validation report</h3>
+            <p className="mt-1 text-xs leading-5 text-slate-500">Chỉ nhập dữ liệu đúng schema hiện tại. Import bị từ chối nếu có ID trùng; dữ liệu hiện tại không bị ghi đè.</p>
+            {message && <p role="status" className="mt-4 rounded-lg border border-emerald-400/20 bg-emerald-400/5 p-3 text-xs text-emerald-200">{message}</p>}
+            {error && <p role="alert" className="mt-4 rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-200">{error}</p>}
+            {issues.length > 0 && <ul className="mt-4 space-y-2">{issues.map((issue, index) => <li key={index} className="rounded-lg border border-rose-400/20 bg-rose-400/5 p-3 text-xs text-rose-200">{issue}</li>)}</ul>}
+            {!message && !error && issues.length === 0 && <p className="mt-4 text-xs text-slate-600">Chưa có báo cáo. Nhấn Validate JSON để kiểm tra.</p>}
+          </div>
+          <div className="rounded-2xl border border-line bg-panel/60 p-4">
+            <h3 className="text-sm font-semibold">Storage overview</h3>
+            <dl className="mt-3 space-y-2 text-xs">
+              <div className="flex justify-between text-slate-400"><dt>System templates</dt><dd>{templates.filter((item) => item.origin === "system").length}</dd></div>
+              <div className="flex justify-between text-slate-400"><dt>Custom templates</dt><dd>{templates.filter((item) => item.origin === "custom").length}</dd></div>
+              <div className="flex justify-between text-slate-400"><dt>Saved workflows</dt><dd>{workflows.length}</dd></div>
+            </dl>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
