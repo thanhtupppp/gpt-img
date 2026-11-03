@@ -56,7 +56,7 @@ class GeminiImageAdapter:
         self._client = client or httpx.Client(timeout=httpx.Timeout(120.0, connect=10.0))
 
     def test_connection(self) -> dict[str, Any]:
-        key = _api_key(self._workspace_id)
+        key = _api_key(self._workspace_id) if self._workspace_id else _api_key()
         try:
             response = self._client.get(
                 f"{GEMINI_API_BASE}/models/{DEFAULT_IMAGE_MODEL}",
