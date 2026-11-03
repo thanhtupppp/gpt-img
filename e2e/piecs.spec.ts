@@ -61,14 +61,17 @@ test("workflow can be edited, cloned, and deleted without losing the saved copy"
   await page.getByLabel("Workflow name").fill("Lifecycle Workflow Edited");
   await page.getByRole("button", { name: "Save workflow" }).click();
 
-  await expect(page.getByRole("button", { name: "Lifecycle Workflow Edited", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Duplicate Lifecycle Workflow Edited" }).click();
-  await expect(page.getByRole("button", { name: /Lifecycle Workflow Edited \(Copy\)/ })).toBeVisible();
+  const editedRow = page.getByRole("listitem").filter({ hasText: "Lifecycle Workflow Edited" }).first();
+  await expect(editedRow).toBeVisible();
+  await editedRow.getByRole("button", { name: "Duplicate Lifecycle Workflow Edited", exact: true }).click();
+
+  const copyRow = page.getByRole("listitem").filter({ hasText: "Lifecycle Workflow Edited (Copy)" });
+  await expect(copyRow).toBeVisible();
 
   page.once("dialog", dialog => dialog.accept());
-  await page.getByRole("button", { name: "Delete Lifecycle Workflow Edited" }).click();
-  await expect(page.getByRole("button", { name: "Lifecycle Workflow Edited", exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Lifecycle Workflow Edited (Copy)", exact: true })).toBeVisible();
+  await editedRow.getByRole("button", { name: "Delete Lifecycle Workflow Edited", exact: true }).click();
+  await expect(editedRow).toHaveCount(0);
+  await expect(copyRow).toBeVisible();
 });
 
 test("JSON Studio rejects an invalid PIECS schema and an oversized file", async ({ page }) => {
