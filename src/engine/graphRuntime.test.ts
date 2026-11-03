@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import "fake-indexeddb/auto";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { closeDatabaseForTests } from "../storage/database";
 import type { WorkflowStep } from "../domain/types";
 import type { WorkflowGraph } from "./workflowGraph";
 import { demoGraphAdapter } from "./graphAdapters";
@@ -12,6 +14,10 @@ const graph = (ids: string[], edges: Array<[string, string]>): WorkflowGraph => 
 });
 
 describe("hybrid workflow graph runtime", () => {
+  afterEach(async () => {
+    await closeDatabaseForTests();
+    indexedDB.deleteDatabase("piecs-library");
+  });
   it("executes sequential nodes, parallel branches, and joins in dependency order", async () => {
     const input = graph(
       ["source", "branch-a", "branch-b", "join"],
