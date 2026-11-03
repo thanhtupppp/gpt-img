@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -29,8 +30,9 @@ def _cipher() -> Fernet:
 @contextmanager
 def _database() -> Iterator[sqlite3.Connection]:
     path = Path(get_settings().database_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     connection = sqlite3.connect(path, timeout=10)
+    os.chmod(path, 0o600)
     try:
         connection.execute(
             """
