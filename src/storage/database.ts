@@ -1,5 +1,5 @@
 const DATABASE_NAME = "piecs-library";
-const DATABASE_VERSION = 5;
+const DATABASE_VERSION = 6;
 
 let databasePromise: Promise<IDBDatabase> | undefined;
 
@@ -19,6 +19,7 @@ export function openDatabase(): Promise<IDBDatabase> {
       if (!database.objectStoreNames.contains("engineJobs")) database.createObjectStore("engineJobs", { keyPath: "id" });
       if (!database.objectStoreNames.contains("graphExecutions")) database.createObjectStore("graphExecutions", { keyPath: "graphId" });
       if (!database.objectStoreNames.contains("assets")) database.createObjectStore("assets", { keyPath: "id" });
+      if (!database.objectStoreNames.contains("workflowGraphs")) database.createObjectStore("workflowGraphs", { keyPath: "id" });
     };
     request.onsuccess = () => {
       const database = request.result;

@@ -5,6 +5,7 @@ import {
 } from "../domain/types";
 import { validateTemplate, validateWorkflow } from "../domain/validation";
 import { openDatabase, requestResult, transactionComplete } from "./database";
+import { validateStoredWorkflowGraph, type StoredWorkflowGraph } from "./workflowGraphRepository";
 
 export const PROMPT_PACKAGE_FORMAT = "piecs-prompt-package" as const;
 export const PROMPT_PACKAGE_VERSION = "1.0.0" as const;
@@ -16,6 +17,8 @@ export interface PromptPackage {
   exportedAt: string;
   templates: PiecsTemplate[];
   workflows: PiecsWorkflow[];
+  /** Optional for backward compatibility with Prompt Package 1.0.0 files. */
+  workflowGraphs?: StoredWorkflowGraph[];
 }
 
 export class PromptPackageError extends Error {
@@ -67,6 +70,7 @@ function sanitizeWorkflow(value: PiecsWorkflow): PiecsWorkflow {
 export function createPromptPackage(input: {
   templates: PiecsTemplate[];
   workflows: PiecsWorkflow[];
+  workflowGraphs?: StoredWorkflowGraph[];
 }): PromptPackage {
   return {
     format: PROMPT_PACKAGE_FORMAT,
@@ -74,6 +78,19 @@ export function createPromptPackage(input: {
     exportedAt: new Date().toISOString(),
     templates: input.templates.filter((item) => item.origin === "custom").map(sanitizeTemplate),
     workflows: input.workflows.map(sanitizeWorkflow),
+    workflowGraphs: (input.workflowGraphs ?? []).map(sanitizeWorkflowGraph),
+  };
+}
+
+function sanitizeWorkflowGraph(value: StoredWorkflowGraph): StoredWorkflowGraph {
+  return {
+    id: value.id, name: value.name, description: value.description,
+    graph: {
+      schemaVersion: "1.0.0",
+      nodes: value.graph.nodes.map((node) => ({ id: node.id, commandId: node.commandId, parameters: { ...node.parameters } })),
+      edges: value.graph.edges.map((edge) => ({ id: edge.id, from: edge.from, to: edge.to })),
+    },
+    version: value.version, createdAt: value.createdAt, updatedAt: value.updatedAt,
   };
 }
 
@@ -111,10 +128,11 @@ export function parsePromptPackage(serialized: string): PromptPackage {
   if (typeof raw.exportedAt !== "string" || !Number.isFinite(Date.parse(raw.exportedAt))) {
     throw new PromptPackageError("Prompt Package exportedAt must be a valid date.");
   }
-  if (!Array.isArray(raw.templates) || !Array.isArray(raw.workflows)) {
+  if (!Array.isArray(raw.templates) || !Array.isArray(raw.workflows) || (raw.workflowGraphs !== undefined && !Array.isArray(raw.workflowGraphs))) {
     throw new PromptPackageError("Prompt Package must include templates and workflows arrays.");
   }
-  if (raw.templates.length + raw.workflows.length === 0) {
+  const rawGraphs = (raw.workflowGraphs ?? []) as unknown[];
+  if (raw.templates.length + raw.workflows.length + rawGraphs.length === 0) {
     throw new PromptPackageError("Prompt Package does not contain any templates or workflows.");
   }
 
@@ -130,6 +148,15 @@ export function parsePromptPackage(serialized: string): PromptPackage {
     return sanitizeWorkflow(item as PiecsWorkflow);
   });
 
+  const workflowGraphs: StoredWorkflowGraph[] = rawGraphs.map((item, index) => {
+    if (!validateStoredWorkflowGraph(item)) throw new PromptPackageError(`Invalid hybrid workflow graph at index ${index}.`);
+    return sanitizeWorkflowGraph(item);
+  });
+  const graphIds = new Set<string>();
+  for (const graph of workflowGraphs) {
+    if (graphIds.has(graph.id)) throw new PromptPackageError(`Duplicate hybrid workflow graph ID in package: ${graph.id}`);
+    graphIds.add(graph.id);
+  }
   assertUniqueIds(templates, workflows);
   return {
     format: PROMPT_PACKAGE_FORMAT,
@@ -137,6 +164,7 @@ export function parsePromptPackage(serialized: string): PromptPackage {
     exportedAt: raw.exportedAt,
     templates,
     workflows,
+    workflowGraphs,
   };
 }
 
@@ -157,15 +185,19 @@ function assertUniqueIds(templates: PiecsTemplate[], workflows: PiecsWorkflow[])
 export async function importPromptPackage(value: PromptPackage): Promise<{ templates: number; workflows: number }> {
   const checked = parsePromptPackage(JSON.stringify(value));
   const database = await openDatabase();
-  const transaction = database.transaction(["templates", "workflows"], "readwrite");
+  const transaction = database.transaction(["templates", "workflows", "workflowGraphs", "assets"], "readwrite");
   const completed = transactionComplete(transaction);
   const templateStore = transaction.objectStore("templates");
   const workflowStore = transaction.objectStore("workflows");
+  const graphStore = transaction.objectStore("workflowGraphs");
+  const assetStore = transaction.objectStore("assets");
 
   try {
-    const [existingTemplates, existingWorkflows] = await Promise.all([
+    const [existingTemplates, existingWorkflows, existingGraphs, existingAssets] = await Promise.all([
       requestResult(templateStore.getAll()) as Promise<PiecsTemplate[]>,
       requestResult(workflowStore.getAll()) as Promise<PiecsWorkflow[]>,
+      requestResult(graphStore.getAll()) as Promise<StoredWorkflowGraph[]>,
+      requestResult(assetStore.getAll()) as Promise<Array<{ id: string }>>,
     ]);
     const templateIds = new Set(existingTemplates.map((item) => item.id));
     const workflowIds = new Set(existingWorkflows.map((item) => item.id));
@@ -175,9 +207,21 @@ export async function importPromptPackage(value: PromptPackage): Promise<{ templ
     if (workflowCollision) throw new PromptPackageError(`Workflow ID ${workflowCollision.id} already exists; nothing was imported.`);
 
     checked.templates.forEach((item) => templateStore.add(item));
+    const graphIds = new Set(existingGraphs.map((item) => item.id));
+    const graphCollision = checked.workflowGraphs?.find((item) => graphIds.has(item.id));
+    if (graphCollision) throw new PromptPackageError(`Hybrid workflow graph ID ${graphCollision.id} already exists; nothing was imported.`);
+    const availableAssetIds = new Set(existingAssets.map((item) => item.id));
+    const referencedAssetIds = new Set<string>();
+    for (const graph of checked.workflowGraphs ?? []) for (const node of graph.graph.nodes) {
+      const assetId = node.parameters.input_asset_id;
+      if (typeof assetId === "string" && assetId.trim()) referencedAssetIds.add(assetId.trim());
+    }
+    const missingAssets = [...referencedAssetIds].filter((id) => !availableAssetIds.has(id));
+    if (missingAssets.length) throw new PromptPackageError(`Cannot import hybrid workflow graphs: missing Asset Library references: ${missingAssets.join(", ")}. Import or restore these assets first; image blobs are not included in Prompt Packages.`);
     checked.workflows.forEach((item) => workflowStore.add(item));
+    (checked.workflowGraphs ?? []).forEach((item) => graphStore.add(item));
     await completed;
-    return { templates: checked.templates.length, workflows: checked.workflows.length };
+    return { templates: checked.templates.length, workflows: checked.workflows.length + (checked.workflowGraphs?.length ?? 0) };
   } catch (error) {
     transaction.abort();
     await completed.catch(() => undefined);
@@ -188,14 +232,16 @@ export async function importPromptPackage(value: PromptPackage): Promise<{ templ
 
 export async function exportPromptPackage(): Promise<PromptPackage> {
   const database = await openDatabase();
-  const transaction = database.transaction(["templates", "workflows"], "readonly");
-  const [templates, workflows] = await Promise.all([
+  const transaction = database.transaction(["templates", "workflows", "workflowGraphs"], "readonly");
+  const [templates, workflows, workflowGraphs] = await Promise.all([
     requestResult(transaction.objectStore("templates").getAll()) as Promise<PiecsTemplate[]>,
     requestResult(transaction.objectStore("workflows").getAll()) as Promise<PiecsWorkflow[]>,
+    requestResult(transaction.objectStore("workflowGraphs").getAll()) as Promise<StoredWorkflowGraph[]>,
   ]);
   await transactionComplete(transaction);
   return createPromptPackage({
     templates: templates.filter((item) => item.origin === "custom"),
     workflows,
+    workflowGraphs,
   });
 }
