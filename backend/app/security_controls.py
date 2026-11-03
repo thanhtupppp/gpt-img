@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 
 from .config import get_settings
 
@@ -188,9 +188,13 @@ def list_audit_events(
     }
 
 
-from .providers.security import require_admin
+def _require_admin(request: Request, authorization: str | None = Header(default=None)):
+    # Local import avoids a cycle: provider auth itself uses enforce_rate_limit.
+    from .providers.security import require_admin
+    return require_admin(request, authorization)
 
-router = APIRouter(prefix="/api/v1/admin/audit-logs", tags=["audit"], dependencies=[Depends(require_admin)])
+
+router = APIRouter(prefix="/api/v1/admin/audit-logs", tags=["audit"], dependencies=[Depends(_require_admin)])
 
 
 @router.get("")
