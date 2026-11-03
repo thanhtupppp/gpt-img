@@ -26,6 +26,6 @@ def require_admin(request: Request, authorization: str | None = Header(default=N
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    enforce_rate_limit(expected, category="admin-service")
     request.state.audit_actor_type = "admin_service"
     request.state.audit_actor_identity = expected
+    enforce_rate_limit(expected, category="admin-service")
