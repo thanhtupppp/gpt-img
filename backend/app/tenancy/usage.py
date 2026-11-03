@@ -30,12 +30,12 @@ def initialize_usage_schema() -> None:
     with closing(_connect()) as db, db:
         db.executescript("""
         CREATE TABLE IF NOT EXISTS workspace_quotas (
-            workspace_id TEXT PRIMARY KEY REFERENCES workspaces(id) ON DELETE CASCADE,
+            workspace_id TEXT PRIMARY KEY,
             monthly_units INTEGER CHECK(monthly_units IS NULL OR monthly_units >= 0),
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS workspace_usage_periods (
-            workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+            workspace_id TEXT NOT NULL,
             period TEXT NOT NULL,
             used_units INTEGER NOT NULL DEFAULT 0 CHECK(used_units >= 0),
             reserved_units INTEGER NOT NULL DEFAULT 0 CHECK(reserved_units >= 0),
