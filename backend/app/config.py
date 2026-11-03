@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     bridge_token: str = ""
     secret_encryption_key: str = ""
     database_path: str = "data/piecs-gateway.sqlite3"
+    asset_s3_endpoint: str = ""
+    asset_s3_bucket: str = ""
+    asset_s3_region: str = "auto"
+    asset_s3_access_key: str = ""
+    asset_s3_secret_key: str = ""
+    worker_max_concurrency: int = 4
 
     @property
     def allowed_origins(self) -> list[str]:
@@ -22,6 +28,8 @@ class Settings(BaseSettings):
     def validate_security_settings(self) -> None:
         if self.app_env.lower() == "production" and "*" in self.allowed_origins:
             raise ValueError("Wildcard CORS origins are forbidden in production.")
+        if not 1 <= self.worker_max_concurrency <= 4:
+            raise ValueError("PIECS_WORKER_MAX_CONCURRENCY must be between 1 and 4.")
 
 
 @lru_cache
