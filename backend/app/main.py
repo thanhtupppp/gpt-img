@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .auth.routes import router as auth_router
 from .bridge.routes import router as bridge_router
 from .config import get_settings
 from .providers.routes import router as providers_router
@@ -26,6 +27,7 @@ app.add_middleware(
     expose_headers=["X-Request-ID"],
 )
 
+app.include_router(auth_router)
 app.include_router(providers_router)
 app.include_router(gemini_router)
 app.include_router(bridge_router)
