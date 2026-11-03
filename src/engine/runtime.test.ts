@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import type { WorkflowStep } from "../domain/types";
 import type { EngineAdapter, EngineJob } from "./types";
 import { createEngineJob, executeEngineJob, retryEngineJob } from "./runtime";
 
-const workflow = {
+const workflow: { id: string; name: string; steps: WorkflowStep[] } = {
   id: "workflow-1",
   name: "Test workflow",
   steps: [
