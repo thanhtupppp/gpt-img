@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, Copy, Plus, Save, Trash2, Workflow as WorkflowIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, Copy, Plus, Save, Trash2, Workflow as WorkflowIcon } from "lucide-react";
 import { commandCatalog, searchCommands } from "../../data/commandCatalog";
+import { starterWorkflows } from "../../data/starterWorkflows";
 import { PIECS_SCHEMA_VERSION, type PiecsWorkflow } from "../../domain/types";
 import { buildWorkflowPrompt, moveWorkflowStep, validateWorkflowCommandIds, type WorkflowBuilderStep } from "../../features/workflows/workflowBuilder";
-import { deleteWorkflow, listWorkflows, saveWorkflow } from "../../storage/workflowRepository";
+import { cloneWorkflow, deleteWorkflow, listWorkflows, saveWorkflow } from "../../storage/workflowRepository";
 
 type Props = { copied: string; onCopy: (value: string, id: string) => void };
 
@@ -35,6 +36,29 @@ export function WorkflowBuilder({ copied, onCopy }: Props) {
     setDescription("");
     setSteps([]);
     setError("");
+  };
+
+  const loadStarter = (starter: (typeof starterWorkflows)[number]) => {
+    setEditingId(null);
+    setName(starter.name);
+    setDescription(starter.description);
+    setSteps(starter.steps.map((step, index) => ({
+      id: crypto.randomUUID(),
+      commandId: step.commandId,
+      parameters: { ...step.parameters },
+      argumentsText: typeof step.parameters.raw === "string" ? step.parameters.raw : "",
+    })));
+    setError("");
+  };
+
+  const duplicate = async (id: string) => {
+    try {
+      await cloneWorkflow(id, `WORKFLOW-${crypto.randomUUID()}`);
+      await refresh();
+      setError("");
+    } catch {
+      setError("Không thể nhân bản workflow. Vui lòng thử lại.");
+    }
   };
 
   const addStep = () => {
@@ -104,6 +128,21 @@ export function WorkflowBuilder({ copied, onCopy }: Props) {
         <button type="button" onClick={resetEditor} className="inline-flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-xs text-slate-300 hover:bg-white/5"><Plus size={14}/> New workflow</button>
       </header>
       {error && <div role="alert" className="rounded-xl border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-xs text-rose-200">{error}</div>}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2"><BookOpen size={15} className="text-indigo-300"/><h3 className="text-sm font-semibold">Starter workflows</h3><span className="text-xs text-slate-500">Load a preset and customize it</span></div>
+        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-5">
+          {starterWorkflows.map((starter) => (
+            <article key={starter.id} className="flex flex-col rounded-xl border border-line bg-panel/50 p-3">
+              <h4 className="text-xs font-semibold text-slate-200">{starter.name}</h4>
+              <p className="mt-2 flex-1 text-[11px] leading-5 text-slate-500">{starter.description}</p>
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <span className="text-[10px] text-slate-600">{starter.steps.length} steps</span>
+                <button type="button" onClick={() => loadStarter(starter)} className="rounded-lg border border-line px-2.5 py-1.5 text-[10px] text-indigo-200 hover:bg-indigo-400/10">Use preset</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,.9fr)]">
         <div className="space-y-4">
           <div className="rounded-2xl border border-line bg-panel/70 p-4 sm:p-5">
@@ -148,7 +187,7 @@ export function WorkflowBuilder({ copied, onCopy }: Props) {
           <div className="rounded-2xl border border-line bg-panel/50 p-4">
             <div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold">Saved workflows</h3><span className="text-xs text-slate-500">{workflows.length}</span></div>
             {loading ? <p className="text-xs text-slate-500">Loading workflows...</p> : workflows.length === 0 ? <p className="text-xs text-slate-500">Chưa có workflow nào được lưu.</p> :
-              <ul className="space-y-2">{workflows.map((workflow) => <li key={workflow.id} className="flex items-center justify-between gap-2 rounded-xl border border-line bg-[#090d16]/70 p-3"><button type="button" onClick={() => edit(workflow)} className="min-w-0 flex-1 text-left"><span className="block truncate text-xs font-medium text-slate-200">{workflow.name}</span><span className="mt-1 block text-[10px] text-slate-500">{workflow.steps.length} steps · Updated {new Date(workflow.updatedAt).toLocaleDateString()}</span></button><button type="button" aria-label={`Delete ${workflow.name}`} onClick={() => remove(workflow.id)} className="rounded-lg p-2 text-rose-300 hover:bg-rose-400/10"><Trash2 size={14}/></button></li>)}</ul>}
+              <ul className="space-y-2">{workflows.map((workflow) => <li key={workflow.id} className="flex items-center justify-between gap-2 rounded-xl border border-line bg-[#090d16]/70 p-3"><button type="button" onClick={() => edit(workflow)} className="min-w-0 flex-1 text-left"><span className="block truncate text-xs font-medium text-slate-200">{workflow.name}</span><span className="mt-1 block text-[10px] text-slate-500">{workflow.steps.length} steps · Updated {new Date(workflow.updatedAt).toLocaleDateString()}</span></button><button type="button" aria-label={`Duplicate ${workflow.name}`} onClick={() => duplicate(workflow.id)} className="rounded-lg p-2 text-slate-400 hover:bg-white/5"><Copy size={14}/></button><button type="button" aria-label={`Delete ${workflow.name}`} onClick={() => remove(workflow.id)} className="rounded-lg p-2 text-rose-300 hover:bg-rose-400/10"><Trash2 size={14}/></button></li>)}</ul>}
           </div>
         </aside>
       </div>
