@@ -24,6 +24,8 @@ app.add_middleware(
     expose_headers=["X-Request-ID"],
 )
 
+app.include_router(providers_router)
+
 
 @app.middleware("http")
 async def attach_request_id(request: Request, call_next):
