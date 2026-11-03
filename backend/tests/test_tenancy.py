@@ -76,3 +76,60 @@ def test_owner_cannot_be_removed_or_demoted(monkeypatch, tmp_path):
     with __import__("pytest").raises(ValueError):
         store.remove_member("https://issuer.example.test/", "owner", workspace["id"],
                             "https://issuer.example.test/", "owner")
+
+
+
+def test_workspace_resource_api_enforces_membership_and_roles(monkeypatch, tmp_path):
+    setup(monkeypatch, tmp_path)
+    issuer = "https://issuer.example.test/"
+    workspace_a = store.create_workspace(issuer, "owner-a", "Alpha")
+    workspace_b = store.create_workspace(issuer, "owner-b", "Beta")
+    store.add_member(issuer, "owner-a", workspace_a["id"], issuer, "viewer-a", "viewer")
+
+    own = client.get(f"/api/v1/workspaces/{workspace_a['id']}/providers", headers=auth("viewer-a"))
+    assert own.status_code == 200
+
+    cross_workspace = client.get(
+        f"/api/v1/workspaces/{workspace_b['id']}/providers",
+        headers=auth("viewer-a"),
+    )
+    assert cross_workspace.status_code == 404
+
+    denied_secret_write = client.put(
+        f"/api/v1/workspaces/{workspace_a['id']}/providers/gemini/credentials",
+        headers=auth("viewer-a"),
+        json={"api_key": "a-valid-looking-test-key"},
+    )
+    assert denied_secret_write.status_code == 403
+
+
+def test_workspace_execution_api_does_not_disclose_other_tenant(monkeypatch, tmp_path):
+    setup(monkeypatch, tmp_path)
+    issuer = "https://issuer.example.test/"
+    workspace_a = store.create_workspace(issuer, "owner-a", "Alpha")
+    workspace_b = store.create_workspace(issuer, "owner-b", "Beta")
+    execution = __import__("app.bridge.store", fromlist=["submit_workspace_execution"]).submit_workspace_execution(
+        workspace_a["id"],
+        "private-graph",
+        {
+            "graphId": "private-graph",
+            "graph": {
+                "schemaVersion": "1.0.0",
+                "nodes": [{"id": "node-1"}],
+                "edges": [],
+            },
+        },
+        None,
+    )
+
+    response = client.get(
+        f"/api/v1/workspaces/{workspace_b['id']}/bridge/executions/{execution['executionId']}",
+        headers=auth("owner-b"),
+    )
+    assert response.status_code == 404
+
+    own_response = client.get(
+        f"/api/v1/workspaces/{workspace_a['id']}/bridge/executions/{execution['executionId']}",
+        headers=auth("owner-a"),
+    )
+    assert own_response.status_code == 200
