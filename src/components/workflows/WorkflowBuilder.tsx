@@ -74,6 +74,7 @@ export function WorkflowBuilder({ copied, onCopy }: Props) {
   const save = async () => {
     setError("");
     if (!name.trim()) { setError("Vui lòng nhập tên workflow."); return; }
+    if (!description.trim()) { setError("Vui lòng nhập mô tả workflow."); return; }
     if (steps.length === 0) { setError("Workflow cần có ít nhất một bước."); return; }
     const issues = validateWorkflowCommandIds(steps, new Set(commandCatalog.map((command) => command.id)));
     if (issues.length) { setError(issues.join(" ")); return; }

@@ -30,6 +30,15 @@ test("command tabs support arrow-key navigation and expose the selected panel", 
   await expect(page.getByRole("tabpanel", { name: "Command Builder" })).toBeVisible();
 });
 
+test("workflow builder explains that a description is required before saving", async ({ page }) => {
+  await page.getByRole("button", { name: "Workflows", exact: true }).click();
+  await page.getByLabel("Workflow name").fill("Missing Description Workflow");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByRole("button", { name: "Save workflow" }).click();
+  await expect(page.getByRole("alert")).toContainText("Vui lòng nhập mô tả workflow.");
+  await expect(page.getByText("Missing Description Workflow", { exact: true })).toHaveCount(0);
+});
+
 test("workflow builder creates and saves a reusable workflow", async ({ page }) => {
   await page.getByRole("button", { name: "Workflows", exact: true }).click();
   await page.getByLabel("Workflow name").fill("E2E Workflow");
