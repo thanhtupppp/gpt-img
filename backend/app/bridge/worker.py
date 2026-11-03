@@ -200,6 +200,7 @@ def _safe_error(exc: Exception) -> str:
 def run_worker(poll_seconds: float = 2.0, lease_seconds: int = 90) -> None:
     worker_id = f"{socket.gethostname()}-{os.getpid()}"
     worker_store.initialize_worker_schema()
+    worker_store.register_worker(worker_id)
     settings = get_settings()
     logger.info("PIECS workflow worker started (%s).", worker_id)
     while True:
