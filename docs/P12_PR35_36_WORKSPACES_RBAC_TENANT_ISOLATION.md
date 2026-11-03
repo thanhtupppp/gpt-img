@@ -32,4 +32,4 @@
 - R2/S3 production configuration, OIDC provider setup, and trusted reverse-proxy/session deployment remain deployment tasks; this PR does not configure production secrets.
 - Do not expose admin or bridge service tokens to browsers.
 - Configure production OIDC issuer, audience and JWKS URL only behind the trusted application session boundary.
-- Existing shared Provider Vault and Bridge service-token routes remain privileged single-tenant compatibility surfaces and must not be exposed to untrusted multi-tenant clients.
+- Before production multi-tenant traffic, complete automated cross-workspace regression tests for package, execution, cancellation, provider credential and asset isolation. Configure R2 and OIDC secrets only in the deployment environment, never in frontend code or CI.
