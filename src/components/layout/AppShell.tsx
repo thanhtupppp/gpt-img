@@ -1,7 +1,7 @@
 import {useState,type ReactNode} from "react";
 import {Activity, Command, FileJson, Grid2X2, Heart, Image as ImageIcon, Layers3, Menu, Settings, Sparkles, Workflow, X} from "lucide-react";
 
-export type AppPage = "Overview" | "Template Library" | "Workflows" | "AI Workflow Engine" | "Image Studio" | "Asset Library" | "Command Library" | "JSON Studio" | "Favorites" | "Settings";
+export type AppPage = "Overview" | "Template Library" | "Workflows" | "AI Workflow Engine" | "Image Studio" | "Asset Library" | "Prompt Packages" | "Command Library" | "JSON Studio" | "Favorites" | "Settings";
 const navigation = [
   {label:"Overview" as const, icon:Grid2X2},
   {label:"Template Library" as const, icon:ImageIcon},
@@ -9,6 +9,7 @@ const navigation = [
   {label:"AI Workflow Engine" as const, icon:Activity},
   {label:"Image Studio" as const, icon:ImageIcon},
   {label:"Asset Library" as const, icon:ImageIcon},
+  {label:"Prompt Packages" as const, icon:FileJson},
   {label:"Command Library" as const, icon:Command},
   {label:"JSON Studio" as const, icon:FileJson},
   {label:"Favorites" as const, icon:Heart},
@@ -18,7 +19,8 @@ type AppShellProps = {page:AppPage; onNavigate:(page:AppPage)=>void; favoriteCou
 export function AppShell({page,onNavigate,favoriteCount,children}:AppShellProps) {
   const [mobileOpen,setMobileOpen] = useState(false);
   const navigate = (next:AppPage) => {onNavigate(next);setMobileOpen(false);};
-  return <div className="min-h-screen text-slate-100 lg:flex">\n    <a href="#main-content" className="sr-only z-50 rounded-lg bg-indigo-400 px-4 py-3 font-semibold text-slate-950 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to main content</a>
+  return <div className="min-h-screen text-slate-100 lg:flex">
+    <a href="#main-content" className="sr-only z-50 rounded-lg bg-indigo-400 px-4 py-3 font-semibold text-slate-950 focus:not-sr-only focus:fixed focus:left-4 focus:top-4">Skip to main content</a>
     {mobileOpen && <button aria-label="Close navigation overlay" onClick={()=>setMobileOpen(false)} className="fixed inset-0 z-20 bg-black/65 backdrop-blur-sm lg:hidden"/>}
     <aside className={`fixed inset-y-0 left-0 z-30 flex w-[min(18rem,86vw)] flex-col border-r border-line bg-[#0c1220] p-5 transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:translate-x-0 ${mobileOpen?"translate-x-0":"-translate-x-full"}`}>
       <div className="mb-10 flex items-center justify-between gap-3">
