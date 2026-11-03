@@ -26,7 +26,7 @@ class WorkspaceCredentialInput(BaseModel):
 
 class WorkspaceQuotaInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    monthly_units: int | None = Field(default=None, ge=0, le=1_000_000_000)
+    monthly_units: int | None = Field(ge=0, le=1_000_000_000)
 
 
 def _access(principal: Principal, workspace_id: UUID, role: str = "viewer") -> str:
