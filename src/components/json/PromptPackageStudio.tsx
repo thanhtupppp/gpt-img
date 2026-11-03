@@ -64,12 +64,12 @@ export function PromptPackageStudio() {
 
   const onImport = async () => {
     if (!candidate || busy) return;
-    if (!window.confirm(`Xác nhận nhập ${candidate.templates.length} template và ${candidate.workflows.length} workflow? Nếu có ID trùng, toàn bộ giao dịch sẽ bị hủy và dữ liệu hiện tại được giữ nguyên.`)) return;
+    if (!window.confirm(`Xác nhận nhập ${candidate.templates.length} template, ${candidate.workflows.length} sequential workflow và ${candidate.workflowGraphs?.length ?? 0} hybrid graph? Nếu có ID trùng, toàn bộ giao dịch sẽ bị hủy và dữ liệu hiện tại được giữ nguyên.`)) return;
     setBusy(true);
     clearMessages();
     try {
       const result = await importPromptPackage(candidate);
-      setStatus(`Nhập thành công: ${result.templates} templates và ${result.workflows} workflows.`);
+      setStatus(`Nhập thành công: ${result.templates} templates và ${result.workflows} workflows/graphs.`);
       setCandidate(null);
       setFileName("");
     } catch (cause) {
@@ -84,12 +84,12 @@ export function PromptPackageStudio() {
       <header>
         <div className="mb-2 flex items-center gap-2 text-xs font-medium text-indigo-300"><FileJson size={14}/> PORTABLE LIBRARY DATA</div>
         <h2 className="text-xl font-semibold">Prompt Package</h2>
-        <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">Sao lưu và chuyển custom templates cùng sequential workflows giữa các thiết bị. Package được kiểm tra schema và nhập atomic vào IndexedDB cục bộ.</p>
+        <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">Sao lưu custom templates, sequential workflows và hybrid DAG workflows. Package được kiểm tra schema và nhập atomic vào IndexedDB cục bộ.</p>
       </header>
       <div className="grid gap-4 md:grid-cols-2">
         <article className="rounded-2xl border border-line bg-panel/60 p-5">
           <div className="flex items-center gap-2 text-slate-200"><Download size={17}/><h3 className="text-sm font-semibold">Export package</h3></div>
-          <p className="mt-2 min-h-12 text-xs leading-5 text-slate-400">Xuất custom templates và workflows thành một file JSON có version. System templates, credentials, asset blobs và execution history không được đưa vào file.</p>
+          <p className="mt-2 min-h-12 text-xs leading-5 text-slate-400">Xuất custom templates, sequential workflows và hybrid DAG workflows thành JSON. System templates, credentials, asset blobs và execution history không được đưa vào file.</p>
           <button type="button" onClick={() => void onExport()} disabled={busy} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-400 px-4 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-50"><Download size={14}/> Export JSON</button>
         </article>
         <article className="rounded-2xl border border-line bg-panel/60 p-5">
@@ -104,6 +104,7 @@ export function PromptPackageStudio() {
         <dl className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="rounded-xl bg-slate-950/60 p-3"><dt className="text-[11px] text-slate-500">Custom templates</dt><dd className="mt-1 text-xl font-semibold tabular-nums">{candidate.templates.length}</dd></div>
           <div className="rounded-xl bg-slate-950/60 p-3"><dt className="text-[11px] text-slate-500">Sequential workflows</dt><dd className="mt-1 text-xl font-semibold tabular-nums">{candidate.workflows.length}</dd></div>
+          <div className="rounded-xl bg-slate-950/60 p-3"><dt className="text-[11px] text-slate-500">Hybrid DAG graphs</dt><dd className="mt-1 text-xl font-semibold tabular-nums">{candidate.workflowGraphs?.length ?? 0}</dd></div>
           <div className="rounded-xl bg-slate-950/60 p-3"><dt className="text-[11px] text-slate-500">Exported at</dt><dd className="mt-1 text-xs font-medium">{new Date(candidate.exportedAt).toLocaleString()}</dd></div>
         </dl>
         <p className="mt-3 text-xs leading-5 text-slate-400">Import sẽ không ghi đè dữ liệu đang có. Nếu phát hiện ID trùng ở bất kỳ entity nào, toàn bộ import sẽ bị rollback.</p>
