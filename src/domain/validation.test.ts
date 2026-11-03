@@ -53,6 +53,13 @@ describe("PIECS template validation", () => {
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined();
   });
 
+  it("rejects prototype-sensitive and non-scalar parameter keys", () => {
+    const withNested = { ...validTemplate, parameters: { safe: "ok", nested: { value: true } } };
+    expect(validateTemplate(withNested).some((issue) => issue.path === "parameters")).toBe(true);
+    const withArray = { ...validTemplate, parameters: { safe: ["not", "scalar"] } };
+    expect(validateTemplate(withArray).some((issue) => issue.path === "parameters")).toBe(true);
+  });
+
   it("rejects unsupported schema versions", () => {
     const issues = validateTemplate({ ...validTemplate, schemaVersion: "0.1.0" });
     expect(issues.some((issue) => issue.path === "schemaVersion")).toBe(true);

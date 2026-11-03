@@ -61,6 +61,17 @@ describe("workflow repository", () => {
     expect(await listWorkflows()).toHaveLength(2);
   });
 
+  it("rejects duplicate IDs within one import batch without partial writes", async () => {
+    const duplicate = { ...workflow, id: "WORKFLOW-DUPLICATE" };
+    await expect(importWorkflows([duplicate, duplicate])).rejects.toThrow("Duplicate workflow ID");
+    expect(await listWorkflows()).toEqual([]);
+  });
+
+  it("treats an empty workflow import as a safe no-op", async () => {
+    await expect(importWorkflows([])).resolves.toEqual([]);
+    expect(await listWorkflows()).toEqual([]);
+  });
+
   it("deletes a workflow", async () => {
     await saveWorkflow(workflow);
     await deleteWorkflow(workflow.id);

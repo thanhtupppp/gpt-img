@@ -84,6 +84,17 @@ describe("template repository", () => {
     expect(records[0].name).toBe("System product");
   });
 
+  it("rejects duplicate IDs within one batch before writing any record", async () => {
+    const duplicate = { ...systemTemplate, id: "CUSTOM-DUPLICATE", origin: "custom" };
+    await expect(importCustomTemplates([duplicate, duplicate])).rejects.toThrow("Duplicate template ID");
+    expect(await listTemplates()).toEqual([]);
+  });
+
+  it("treats an empty import as a safe no-op", async () => {
+    await expect(importCustomTemplates([])).resolves.toEqual([]);
+    expect(await listTemplates()).toEqual([]);
+  });
+
   it("imports a batch of valid custom templates", async () => {
     const incoming = [
       { ...systemTemplate, id: "CUSTOM-BATCH-1", origin: "custom" },
