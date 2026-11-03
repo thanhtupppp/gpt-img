@@ -108,6 +108,74 @@ describe("Prompt Package", () => {
     expect(await listWorkflows()).toEqual([workflow]);
   });
 
+  it("round-trips hybrid workflow graphs and preserves legacy package compatibility", () => {
+    const graph = {
+      id: "GRAPH-1",
+      name: "Hybrid graph",
+      description: "Branch and join",
+      graph: {
+        schemaVersion: "1.0.0" as const,
+        nodes: [
+          { id: "a", commandId: "image.generate", parameters: { prompt: "first" } },
+          { id: "b", commandId: "image.generate", parameters: { prompt: "second" } },
+          { id: "join", commandId: "image.generate", parameters: { prompt: "join" } },
+        ],
+        edges: [
+          { id: "e1", from: "a", to: "join" },
+          { id: "e2", from: "b", to: "join" },
+        ],
+      },
+      version: "1.0.0",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const value = createPromptPackage({ templates: [], workflows: [], workflowGraphs: [graph] });
+    expect(parsePromptPackage(serializePromptPackage(value)).workflowGraphs).toEqual([graph]);
+    const legacy = { ...value };
+    delete (legacy as { workflowGraphs?: unknown }).workflowGraphs;
+    expect(parsePromptPackage(JSON.stringify(legacy)).workflowGraphs).toEqual([]);
+  });
+
+  it("rejects cyclic hybrid workflow graphs", () => {
+    const graph = {
+      id: "GRAPH-CYCLE",
+      name: "Cycle",
+      description: "Invalid",
+      graph: {
+        schemaVersion: "1.0.0" as const,
+        nodes: [
+          { id: "a", commandId: "image.generate", parameters: {} },
+          { id: "b", commandId: "image.generate", parameters: {} },
+        ],
+        edges: [{ id: "ab", from: "a", to: "b" }, { id: "ba", from: "b", to: "a" }],
+      },
+      version: "1.0.0",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    expect(() => parsePromptPackage(JSON.stringify(createPromptPackage({ templates: [], workflows: [], workflowGraphs: [graph] })))).toThrow("Invalid hybrid workflow graph");
+  });
+
+  it("requires referenced assets to exist before importing hybrid graphs", async () => {
+    const asset = await createAsset({ name: "source.png", blob: new Blob(["image"], { type: "image/png" }), source: "upload" });
+    const graph = {
+      id: "GRAPH-ASSET",
+      name: "Asset graph",
+      description: "Uses a stored asset",
+      graph: {
+        schemaVersion: "1.0.0" as const,
+        nodes: [{ id: "a", commandId: "image.generate", parameters: { input_asset_id: asset.id } }],
+        edges: [],
+      },
+      version: "1.0.0",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const value = createPromptPackage({ templates: [], workflows: [], workflowGraphs: [graph] });
+    await expect(importPromptPackage(value)).resolves.toEqual({ templates: 0, workflows: 1 });
+    expect(await listWorkflowGraphs()).toHaveLength(1);
+  });
+
   it("exports only user-owned templates and all workflows from IndexedDB", async () => {
     const database = await (await import("./database")).openDatabase();
     const transaction = database.transaction(["templates", "workflows"], "readwrite");
