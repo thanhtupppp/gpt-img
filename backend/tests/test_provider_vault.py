@@ -32,7 +32,10 @@ def test_provider_list_returns_catalog_without_credentials(configured_gateway):
     payload = response.json()
     assert [item["id"] for item in payload["items"]] == ["gemini", "openai", "anthropic"]
     assert all(item["credential_configured"] is False for item in payload["items"])
-    assert "api_key" not in response.text
+    assert all(
+        set(item) == {"id", "name", "api_base_url", "credential_type", "credential_configured"}
+        for item in payload["items"]
+    )
 
 
 def test_credential_is_encrypted_and_never_returned(configured_gateway):
