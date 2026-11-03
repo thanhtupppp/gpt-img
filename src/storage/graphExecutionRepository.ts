@@ -14,7 +14,7 @@ function metadataOnly(snapshot: GraphExecutionSnapshot): GraphExecutionSnapshot 
       finishedAt: node.finishedAt,
       message: node.message,
       error: node.error,
-      assetId: node.assetId,
+      ...(node.assetId ? { assetId: node.assetId } : {}),
     })),
     logs: [...snapshot.logs],
     startedAt: snapshot.startedAt,
