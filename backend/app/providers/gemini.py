@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from .vault import VaultIntegrityError, _load_credential_for_provider_execution
+from .vault import VaultIntegrityError, _load_credential_for_provider_execution, _load_workspace_credential_for_execution
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_IMAGE_MODEL = "gemini-nano-banana-2.1"
@@ -29,9 +29,10 @@ class GeminiAdapterError(RuntimeError):
         self.status_code = status_code
 
 
-def _api_key() -> str:
+def _api_key(workspace_id: str | None = None) -> str:
     try:
-        key = _load_credential_for_provider_execution("gemini")
+        key = (_load_workspace_credential_for_execution(workspace_id, "gemini")
+               if workspace_id else _load_credential_for_provider_execution("gemini"))
     except VaultIntegrityError as exc:
         raise GeminiAdapterError("CREDENTIAL_VAULT_ERROR", "Stored Gemini credentials are unavailable.", 503) from exc
     if not key:
@@ -50,11 +51,12 @@ def _map_upstream_error(response: httpx.Response) -> GeminiAdapterError:
 
 
 class GeminiImageAdapter:
-    def __init__(self, client: httpx.Client | None = None):
+    def __init__(self, client: httpx.Client | None = None, workspace_id: str | None = None):
+        self._workspace_id = workspace_id
         self._client = client or httpx.Client(timeout=httpx.Timeout(120.0, connect=10.0))
 
     def test_connection(self) -> dict[str, Any]:
-        key = _api_key()
+        key = _api_key(self._workspace_id)
         try:
             response = self._client.get(
                 f"{GEMINI_API_BASE}/models/{DEFAULT_IMAGE_MODEL}",
