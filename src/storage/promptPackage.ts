@@ -87,11 +87,14 @@ export function serializePromptPackage(value: PromptPackage): string {
 
 /** Parse and whitelist package fields; unknown fields (including injected secrets) are discarded. */
 export function parsePromptPackage(serialized: string): PromptPackage {
-  if (typeof serialized !== "string" || !serialized.trim()) {
+  if (typeof serialized !== "string") {
     throw new PromptPackageError("Prompt Package content is empty.");
   }
   if (new TextEncoder().encode(serialized).byteLength > MAX_PROMPT_PACKAGE_BYTES) {
     throw new PromptPackageError("Prompt Package exceeds the 5 MB limit.");
+  }
+  if (!serialized.trim()) {
+    throw new PromptPackageError("Prompt Package content is empty.");
   }
 
   let raw: unknown;
