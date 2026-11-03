@@ -46,3 +46,70 @@ test("JSON Studio loads and validates the local template backup", async ({ page 
   await page.getByRole("button", { name: "Validate JSON" }).click();
   await expect(page.getByRole("status")).toContainText("JSON hợp lệ");
 });
+
+test("workflow can be edited, cloned, and deleted without losing the saved copy", async ({ page }) => {
+  await page.getByRole("button", { name: "Workflows", exact: true }).click();
+  await page.getByLabel("Workflow name").fill("Lifecycle Workflow");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByRole("button", { name: "Save workflow" }).click();
+
+  const saved = page.getByRole("button", { name: "Lifecycle Workflow", exact: true });
+  await expect(saved).toBeVisible();
+  await saved.click();
+  await expect(page.getByRole("heading", { name: "Edit workflow" })).toBeVisible();
+  await page.getByLabel("Workflow name").fill("Lifecycle Workflow Edited");
+  await page.getByRole("button", { name: "Save workflow" }).click();
+
+  await expect(page.getByRole("button", { name: "Lifecycle Workflow Edited", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Duplicate Lifecycle Workflow Edited" }).click();
+  await expect(page.getByRole("button", { name: "Lifecycle Workflow Edited (Copy)", exact: true })).toBeVisible();
+
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Delete Lifecycle Workflow Edited" }).click();
+  await expect(page.getByRole("button", { name: "Lifecycle Workflow Edited", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Lifecycle Workflow Edited (Copy)", exact: true })).toBeVisible();
+});
+
+test("JSON Studio rejects an invalid PIECS schema and an oversized file", async ({ page }) => {
+  await page.getByRole("button", { name: "JSON Studio", exact: true }).click();
+  const editor = page.getByLabel("PIECS JSON document");
+  await editor.fill(JSON.stringify({ system: "NOT-PIECS", schemaVersion: "1.0.0", templates: [] }));
+  await page.getByRole("button", { name: "Validate JSON" }).click();
+  await expect(page.getByText("Nguồn dữ liệu không phải package PIECS.")).toBeVisible();
+
+  await page.getByLabel("Open PIECS JSON backup file").setInputFiles({
+    name: "oversized.json",
+    mimeType: "application/json",
+    buffer: Buffer.alloc(10 * 1024 * 1024 + 1, 32),
+  });
+  await expect(page.getByRole("alert")).toContainText("File vượt quá giới hạn 10 MB");
+  await expect(editor).toHaveValue(JSON.stringify({ system: "NOT-PIECS", schemaVersion: "1.0.0", templates: [] }));
+});
+
+test("canceling a JSON data-type switch preserves the unsaved editor content", async ({ page }) => {
+  await page.getByRole("button", { name: "JSON Studio", exact: true }).click();
+  const editor = page.getByLabel("PIECS JSON document");
+  await editor.fill('{"draft":"keep me"}');
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.getByRole("button", { name: "Workflows (", exact: false }).click();
+  await expect(editor).toHaveValue('{"draft":"keep me"}');
+  await expect(page.getByRole("button", { name: /Templates \(/ })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("JSON Studio refuses to import workflow IDs that already exist", async ({ page }) => {
+  await page.getByRole("button", { name: "Workflows", exact: true }).click();
+  await page.getByLabel("Workflow name").fill("Duplicate Guard Workflow");
+  await page.getByRole("button", { name: "Add step" }).click();
+  await page.getByRole("button", { name: "Save workflow" }).click();
+  await expect(page.getByRole("button", { name: "Duplicate Guard Workflow", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "JSON Studio", exact: true }).click();
+  await page.getByRole("button", { name: "Workflows (", exact: false }).click();
+  await page.getByRole("button", { name: "Load library JSON" }).click();
+  await page.getByRole("button", { name: "Validate JSON" }).click();
+  await expect(page.getByRole("status")).toContainText("JSON hợp lệ");
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Import to library" }).click();
+  await expect(page.getByRole("alert")).toContainText("already exists");
+  await expect(page.getByRole("alert")).toContainText("nothing was imported");
+});
