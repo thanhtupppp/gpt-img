@@ -42,7 +42,7 @@ export function WorkflowBuilder({ copied, onCopy }: Props) {
     setEditingId(null);
     setName(starter.name);
     setDescription(starter.description);
-    setSteps(starter.steps.map((step, index) => ({
+    setSteps(starter.steps.map((step) => ({
       id: crypto.randomUUID(),
       commandId: step.commandId,
       parameters: { ...step.parameters },
