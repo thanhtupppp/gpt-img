@@ -27,6 +27,6 @@ def require_bridge_token(request: Request, authorization: str | None = Header(de
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    enforce_rate_limit(expected, category="bridge-service")
     request.state.audit_actor_type = "bridge_service"
     request.state.audit_actor_identity = expected
+    enforce_rate_limit(expected, category="bridge-service")
