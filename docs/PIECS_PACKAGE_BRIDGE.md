@@ -23,7 +23,7 @@ The package envelope contains:
 - `kind`: stable discriminator.
 - `schemaVersion`: package contract version, independent of the app release.
 - `packageId`: UUID identifying this exported package instance.
-- `exportedAt`: ISO-8601 UTC timestamp.
+- `exportedAt`: ISO-8601 date-time with an explicit timezone.
 - `source`: producer name and version; informational, never trusted for authorization.
 - `content`: portable templates and workflows.
 
@@ -36,7 +36,7 @@ The v1 package intentionally excludes:
 - User identity, device identifiers, private account data, and execution history.
 - Provider-specific executable code or arbitrary remote URLs intended for automatic fetching.
 
-Unknown optional metadata may be retained only as inert data. It must never be evaluated or executed.
+All v1 objects reject undeclared properties. v1 does not define an extension-metadata bag; future extensions must be explicitly versioned rather than silently carried through imports. Scalar parameter maps also reject prototype-sensitive keys (`__proto__`, `prototype`, and `constructor`). Values remain inert data and must never be evaluated or executed.
 
 ## 3. Validation and import behavior
 
@@ -48,8 +48,8 @@ A receiver must reject:
 
 - An unknown `kind` or unsupported major contract version.
 - Malformed JSON, invalid entity records, duplicate IDs within the package, or package size above the configured limit.
-- Prototype-sensitive keys or unsafe values according to the existing domain validator.
-- Unsupported entity schema versions.
+- Prototype-sensitive keys or unsafe values during both JSON Schema validation and runtime import validation.
+- Unsupported entity schema versions and undeclared properties.
 
 A receiver may accept a newer minor version only when the contract explicitly guarantees backward-compatible additive fields; otherwise reject with a structured compatibility error. v1 implementations should require exact `schemaVersion = "1.0.0"`.
 
@@ -104,7 +104,8 @@ Errors must not echo credentials or sensitive payload values. Include a request/
 
 ## 7. P6 acceptance criteria
 
-- The contract and JSON Schema agree on required fields, types, and discriminator.
+- The contract and JSON Schema agree on required fields, types, strict property handling, and discriminator.
+- Automated tests compile the Draft 2020-12 schema and cover valid packages plus malformed envelopes, unsupported versions, invalid entities, and unsafe map keys.
 - The format is provider-neutral and contains no credentials or generated binary assets.
 - Package schema version is distinct from entity schema versions.
 - Import guidance requires validation, conflict reporting, and atomic writes.
