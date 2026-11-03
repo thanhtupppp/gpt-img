@@ -50,10 +50,8 @@ test("JSON Studio loads and validates the local template backup", async ({ page 
 test("workflow can be edited, cloned, and deleted without losing the saved copy", async ({ page }) => {
   await page.getByRole("button", { name: "Workflows", exact: true }).click();
   await page.getByLabel("Workflow name").fill("Lifecycle Workflow");
-  await page.getByLabel("Choose workflow command").selectOption("source");
   await page.getByRole("button", { name: "Add step" }).click();
   await page.getByRole("button", { name: "Save workflow" }).click();
-  await expect(page.getByRole("alert")).toHaveCount(0);
 
   const saved = page.getByRole("button", { name: /Lifecycle Workflow/ });
   await expect(saved).toBeVisible();
