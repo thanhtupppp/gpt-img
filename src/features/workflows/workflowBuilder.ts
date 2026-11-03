@@ -4,10 +4,16 @@ export interface WorkflowBuilderStep extends WorkflowStep {
   argumentsText: string;
 }
 
+function normalizeCommandId(value: string): string {
+  let commandId = value.trim();
+  while (commandId.startsWith("/")) commandId = commandId.slice(1);
+  return commandId;
+}
+
 export function buildWorkflowPrompt(steps: WorkflowBuilderStep[]): string {
   return steps
     .map((step) => {
-      const command = step.commandId.trim().replace(/^\\/+/, "");
+      const command = normalizeCommandId(step.commandId);
       if (!command) return "";
       const args = step.argumentsText.trim();
       return args ? `/${command} ${args}` : `/${command}`;
@@ -29,7 +35,7 @@ export function validateWorkflowCommandIds(
   knownCommandIds: ReadonlySet<string>,
 ): string[] {
   return steps.flatMap((step, index) => {
-    const commandId = step.commandId.trim().replace(/^\\/+/, "");
+    const commandId = normalizeCommandId(step.commandId);
     if (!commandId) return [`Step ${index + 1}: command is required.`];
     if (!knownCommandIds.has(commandId)) return [`Step ${index + 1}: unknown command "${step.commandId}".`];
     return [];
