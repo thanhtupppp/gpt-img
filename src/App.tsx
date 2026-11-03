@@ -35,7 +35,7 @@ export default function App(){
   const [editorOpen,setEditorOpen]=useState(false);
   const [editing,setEditing]=useState<PiecsTemplate|undefined>();
   const [favorites,setFavorites]=useState<string[]>([]);
-  const [storageError,setStorageError]=useState("");
+  const [storageError,setStorageError]=useState("");\n  const [jsonDirty,setJsonDirty]=useState(false);
   useEffect(()=>{
     let active=true;
     initializeTemplateLibrary(templates).then(()=>Promise.all([listFavoriteIds(),listTemplates()])).then(([ids,items])=>{if(active){setFavorites(ids);setLibrary(items);}}).catch(()=>{if(active)setStorageError("Không thể mở bộ nhớ cục bộ. Hãy kiểm tra chế độ riêng tư hoặc quyền lưu trữ của trình duyệt.");});
@@ -61,7 +61,7 @@ export default function App(){
     (page!=="Favorites"||favorites.includes(t.id))
   ),[library,category,profile,query,page,favorites]);
 
-  return <AppShell page={page} onNavigate={next=>{setPage(next);setSelected(null);}} favoriteCount={favorites.length}>
+  return <AppShell page={page} onNavigate={next=>{if(page==="JSON Studio" && jsonDirty && !window.confirm("JSON Studio có nội dung chưa lưu. Anh vẫn muốn rời trang?")) return;setPage(next);setSelected(null);}} favoriteCount={favorites.length}>
     {editorOpen&&<TemplateEditor initial={editing} onCancel={()=>setEditorOpen(false)} onSave={async item=>{await saveCustomTemplate(item);await refreshLibrary();setEditorOpen(false);setEditing(undefined);}}/>}
     {selected ? <TemplateDetail template={selected} onBack={()=>setSelected(null)} onCopy={copy} copied={copied} favorite={favorites.includes(selected.id)} onFavorite={()=>toggleFavorite(selected.id)}/> :
     <div className="space-y-7">
@@ -74,7 +74,7 @@ export default function App(){
       {page==="Settings" ? <section className="max-w-2xl rounded-2xl border border-line bg-panel p-6"><h2 className="font-semibold">Library preferences</h2><p className="mt-2 text-sm leading-6 text-slate-400">Dữ liệu thư viện và danh sách yêu thích được lưu cục bộ bằng IndexedDB trên thiết bị này. Anh có thể tạo, sửa, xóa template cá nhân và xuất/nhập JSON để sao lưu thủ công; không có tài khoản hoặc đồng bộ cloud.</p><div className="mt-5 rounded-xl bg-slate-900 p-4 text-xs text-slate-400">PIECS Core · schema v1.0.0 · Master profile · 80 registered commands</div></section> :
       page==="Command Library" ? <CommandLibrary copied={copied} onCopy={copy}/> :
       page==="Workflows" ? <WorkflowBuilder copied={copied} onCopy={copy}/> :
-      page==="JSON Studio" ? <JsonStudio/> :
+      page==="JSON Studio" ? <JsonStudio onDirtyChange={setJsonDirty}/> :
       page==="Overview" ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(library.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Planned reference pipelines"/></div> :
       <>
         {page==="Template Library"&&<div className="grid gap-3 sm:grid-cols-3"><StatCard icon={ImageIcon} label="Templates" value={String(templates.length).padStart(2,"0")} note="Curated starter presets"/><StatCard icon={Command} label="Commands" value="80" note="Across 8 modules"/><StatCard icon={Workflow} label="Workflows" value="05" note="Reference pipelines"/></div>}
