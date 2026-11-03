@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { X } from "lucide-react";
 import type { PiecsTemplate, TemplateProfile } from "../../domain/types";
 
@@ -9,6 +9,7 @@ type Props = {
 };
 
 const profiles: TemplateProfile[] = ["Professional", "Studio", "Master"];
+const FOCUSABLE_SELECTOR = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 const categories = ["Product Photography", "Portrait & Beauty", "Creative Compositing", "Advertising & Poster", "Photo Restoration", "Landscape & Nature", "Architecture & Interior", "Creative & Artistic"];
 
 export function TemplateEditor({ initial, onSave, onCancel }: Props) {
@@ -20,6 +21,35 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
   const [tags, setTags] = useState(initial?.tags.join(", ") ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    nameInputRef.current?.focus();
+    return () => previousFocus?.focus();
+  }, []);
+
+  const handleDialogKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (!saving) onCancel();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ?? [])
+      .filter((element) => element.getClientRects().length > 0);
+    if (focusable.length === 0) { event.preventDefault(); return; }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -49,10 +79,10 @@ export function TemplateEditor({ initial, onSave, onCancel }: Props) {
     }
   };
 
-  return <div role="dialog" aria-modal="true" aria-labelledby="template-editor-title" className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+  return <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="template-editor-title" aria-describedby="template-editor-description" onKeyDown={handleDialogKeyDown} className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-0 backdrop-blur-sm sm:items-center sm:p-4">
     <form onSubmit={submit} className="max-h-[94vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-t-2xl border border-line bg-[#101827] p-5 shadow-2xl sm:rounded-2xl sm:p-7">
-      <div className="flex items-center justify-between"><div><h2 id="template-editor-title" className="text-xl font-semibold">{initial ? "Edit custom template" : "Create custom template"}</h2><p className="mt-1 text-xs text-slate-400">Template cá nhân được lưu trên thiết bị này.</p></div><button type="button" onClick={onCancel} aria-label="Close editor" className="rounded-lg p-2 text-slate-400 hover:bg-white/5"><X size={18}/></button></div>
-      <label className="block text-xs text-slate-300">Template name<input required maxLength={80} value={name} onChange={event=>setName(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-line bg-slate-950 px-3 text-sm outline-none focus:border-indigo-400"/></label>
+      <div className="flex items-center justify-between"><div><h2 id="template-editor-title" className="text-xl font-semibold">{initial ? "Edit custom template" : "Create custom template"}</h2><p id="template-editor-description" className="mt-1 text-xs text-slate-400">Template cá nhân được lưu trên thiết bị này.</p></div><button type="button" onClick={onCancel} aria-label="Close editor" className="rounded-lg p-2 text-slate-400 hover:bg-white/5"><X size={18}/></button></div>
+      <label className="block text-xs text-slate-300">Template name<input ref={nameInputRef} required maxLength={80} value={name} onChange={event=>setName(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-line bg-slate-950 px-3 text-sm outline-none focus:border-indigo-400"/></label>
       <label className="block text-xs text-slate-300">Description<textarea required maxLength={500} value={description} onChange={event=>setDescription(event.target.value)} rows={3} className="mt-2 w-full rounded-lg border border-line bg-slate-950 p-3 text-sm outline-none focus:border-indigo-400"/></label>
       <div className="grid gap-3 sm:grid-cols-2"><label className="text-xs text-slate-300">Category<select value={category} onChange={event=>setCategory(event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-line bg-slate-950 px-3 text-sm">{categories.map(item=><option key={item}>{item}</option>)}</select></label><label className="text-xs text-slate-300">Profile<select value={profile} onChange={event=>setProfile(event.target.value as TemplateProfile)} className="mt-2 h-11 w-full rounded-lg border border-line bg-slate-950 px-3 text-sm">{profiles.map(item=><option key={item}>{item}</option>)}</select></label></div>
       <label className="block text-xs text-slate-300">Command IDs (one per line)<textarea value={commands} onChange={event=>setCommands(event.target.value)} rows={5} className="mt-2 w-full rounded-lg border border-line bg-slate-950 p-3 font-mono text-xs outline-none focus:border-indigo-400"/></label>

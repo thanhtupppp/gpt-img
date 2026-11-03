@@ -47,7 +47,7 @@ function CommandItem({command,active,copied,onSelect,onCopy}:{command:CommandCat
   return <article className={`rounded-xl border p-4 transition ${active?"border-indigo-300/50 bg-indigo-400/[.07]":"border-line bg-panel/50 hover:border-slate-600"}`}>
     <div className="flex items-start justify-between gap-2"><button type="button" onClick={onSelect} className="min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"><div className="font-mono text-sm font-semibold text-slate-100">/{command.id}</div><div className="mt-1 text-[11px] text-indigo-300">{command.module}</div></button><button type="button" aria-label={`Copy ${command.id} syntax`} onClick={onCopy} className="rounded-lg p-2 text-slate-500 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300">{copied?<Check size={14} className="text-emerald-300"/>:<Copy size={14}/>}</button></div>
     <p className="mt-3 line-clamp-2 text-xs leading-5 text-slate-400">{command.description}</p>
-    <button type="button" onClick={onSelect} className="mt-3 text-[11px] font-medium text-indigo-300 hover:text-indigo-200">View specification →</button>
+    <button type="button" onClick={onSelect} aria-label={`View specification for ${command.id}`} className="mt-3 text-[11px] font-medium text-indigo-300 hover:text-indigo-200">View specification →</button>
   </article>;
 }
 function CommandDetail({command,copied,onCopy}:{command:CommandCatalogEntry;copied:boolean;onCopy:()=>void}){
