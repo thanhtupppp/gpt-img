@@ -194,7 +194,7 @@ export function JsonStudio({ onDirtyChange }: { onDirtyChange?: (dirty: boolean)
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(280px,.8fr)]">
         <div className="space-y-3">
           <label className="block text-xs text-slate-400">JSON document
-            <textarea value={source} onChange={(event) => { setSource(event.target.value); setIssues([]); setMessage(""); setError(""); }} spellCheck={false} rows={22} placeholder="Paste a PIECS JSON backup or open a .json file..." className="mt-2 w-full rounded-xl border border-line bg-[#090d16] p-4 font-mono text-xs leading-5 text-slate-200 outline-none focus:border-indigo-400/60"/>
+            <textarea aria-label="PIECS JSON document" value={source} onChange={(event) => { setSource(event.target.value); setIssues([]); setMessage(""); setError(""); }} spellCheck={false} rows={22} placeholder="Paste a PIECS JSON backup or open a .json file..." className="mt-2 w-full rounded-xl border border-line bg-[#090d16] p-4 font-mono text-xs leading-5 text-slate-200 outline-none focus:border-indigo-400/60"/>
           </label>
           <div className="flex flex-wrap justify-between gap-2">
             <div className="flex flex-wrap gap-2">
