@@ -1,10 +1,12 @@
+import sqlite3
+
+import pytest
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
 from app.config import get_settings
 from app.main import app
 from app.providers.vault import _load_credential_for_provider_execution, store_credential
-import sqlite3
 
 
 @pytest.fixture
