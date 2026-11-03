@@ -217,3 +217,31 @@ def test_workspace_member_cannot_change_quota(monkeypatch, tmp_path):
         json={"monthly_units": 10},
     )
     assert response.status_code == 403
+
+
+
+def test_expired_worker_lease_settles_started_units_as_uncertain_without_replay(monkeypatch, tmp_path):
+    configure_database(monkeypatch, tmp_path)
+    workspace = make_workspace()
+    execution = submit(workspace["id"], "graph-a", 3)
+    claim = worker_store.claim_next_execution("lost-worker")
+    assert claim["execution_id"] == execution["executionId"]
+
+    states = {
+        "node-0": {"status": "running", "startedAt": "2026-11-03T00:00:00+00:00"},
+        "node-1": {"status": "running", "startedAt": "2026-11-03T00:00:01+00:00"},
+        "node-2": {"status": "pending"},
+    }
+    assert worker_store.persist_node_states(execution["executionId"], "lost-worker", states)
+    with worker_store._connect() as db:
+        db.execute(
+            "UPDATE bridge_executions SET lease_expires_at=? WHERE id=?",
+            ("2000-01-01T00:00:00+00:00", execution["executionId"]),
+        )
+
+    assert worker_store.claim_next_execution("replacement-worker") is None
+    status = worker_store.get_worker_execution(execution["executionId"], workspace["id"])
+    assert status["status"] == "interrupted"
+    snapshot = usage.get_workspace_usage(workspace["id"])
+    assert snapshot["usedUnits"] == 2
+    assert snapshot["reservedUnits"] == 1
