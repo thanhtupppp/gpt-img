@@ -28,26 +28,26 @@ def _client():
     )
 
 
-def put_image(asset_id: str, data: bytes, mime_type: str) -> dict[str, Any]:
+def put_image(asset_id: str, data: bytes, mime_type: str, workspace_id: str | None = None) -> dict[str, Any]:
     if mime_type not in {"image/png", "image/jpeg", "image/webp"}:
         raise ValueError("Unsupported workflow asset MIME type.")
     if not data or len(data) > 25 * 1024 * 1024:
         raise ValueError("Workflow asset must be between 1 byte and 25 MiB.")
-    key = f"piecs/workflow-assets/{asset_id}"
+    key = f"piecs/workspace-assets/{workspace_id}/{asset_id}" if workspace_id else f"piecs/workflow-assets/{asset_id}"
     settings = get_settings()
     _client().put_object(
         Bucket=settings.asset_s3_bucket,
         Key=key,
         Body=data,
         ContentType=mime_type,
-        Metadata={"asset-id": asset_id},
+        Metadata={"asset-id": asset_id, **({"workspace-id": workspace_id} if workspace_id else {})},
     )
     return {"id": asset_id, "key": key, "mimeType": mime_type, "size": len(data)}
 
 
-def get_image(asset_id: str) -> tuple[bytes, str]:
+def get_image(asset_id: str, workspace_id: str | None = None) -> tuple[bytes, str]:
     settings = get_settings()
-    key = f"piecs/workflow-assets/{asset_id}"
+    key = f"piecs/workspace-assets/{workspace_id}/{asset_id}" if workspace_id else f"piecs/workflow-assets/{asset_id}"
     result = _client().get_object(Bucket=settings.asset_s3_bucket, Key=key)
     body = result["Body"]
     try:
