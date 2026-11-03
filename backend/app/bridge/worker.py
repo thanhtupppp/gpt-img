@@ -129,7 +129,8 @@ def execute_claimed_execution(claim: dict[str, Any], worker_id: str, concurrency
     for edge in edges:
         parent_ids[edge["to"]].append(edge["from"])
     workspace_id = claim.get("workspace_id")
-    adapter = GeminiImageAdapter(workspace_id=workspace_id)
+    adapter = GeminiImageAdapter()
+    adapter._workspace_id = workspace_id
     worker_store.persist_node_states(execution_id, worker_id, states)
     final_status = "succeeded"
     error_summary = None
