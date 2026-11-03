@@ -50,6 +50,12 @@ def test_credential_is_encrypted_and_never_returned(configured_gateway):
     assert secret not in stored.text
     assert stored.json()["items"][0]["credential_configured"] is True
     assert _load_credential_for_provider_execution("gemini") == secret
+    with sqlite3.connect(get_settings().database_path) as connection:
+        encrypted = connection.execute(
+            "SELECT encrypted_api_key FROM provider_credentials WHERE provider_id = ?",
+            ("gemini",),
+        ).fetchone()[0]
+    assert secret.encode("utf-8") not in bytes(encrypted)
 
 
 def test_credential_delete_removes_secret(configured_gateway):
