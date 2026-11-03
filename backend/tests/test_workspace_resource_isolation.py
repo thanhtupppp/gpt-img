@@ -39,3 +39,26 @@ def test_worker_claim_preserves_workspace_id(monkeypatch, tmp_path):
     claim = worker_store.claim_next_execution("worker-test")
     assert claim is not None
     assert claim["workspace_id"] == "workspace-a"
+
+
+def test_workspace_rows_are_not_visible_to_legacy_helpers(monkeypatch, tmp_path):
+    from app.config import get_settings
+    settings = get_settings()
+    monkeypatch.setattr(settings, "database_path", str(tmp_path / "legacy-boundary.sqlite3"))
+    payload = {
+        "format": "piecs-prompt-package", "packageVersion": "1.0.0",
+        "templates": [{"id": "workspace-template"}], "workflows": [], "workflowGraphs": [],
+    }
+    package = store.save_workspace_package("workspace-private", payload)
+    assert store.get_package(package["id"]) is None
+
+    execution = store.submit_workspace_execution(
+        "workspace-private", "graph-private",
+        {"graphId": "graph-private", "graph": {"schemaVersion": "1.0.0", "nodes": [{"id": "n1"}], "edges": []}},
+        None,
+    )
+    execution_id = execution["executionId"]
+    assert worker_store.get_worker_execution(execution_id) is None
+    assert worker_store.get_worker_execution(execution_id, "workspace-private") is not None
+    assert worker_store.request_execution_cancel(execution_id) is False
+    assert worker_store.request_execution_cancel(execution_id, "workspace-private") is True
