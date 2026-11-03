@@ -99,8 +99,7 @@ describe("Prompt Package", () => {
 
   it("rejects cross-entity collisions without partially importing either type", async () => {
     const value = createPromptPackage({ templates: [template], workflows: [workflow] });
-    await importPromptPackage(createPromptPackage({ templates: [template], workflows: [] })).catch(() => undefined);
-    // Seed a workflow collision after confirming template storage is independent.
+    // Seed a workflow collision while leaving the template ID unused.
     await importPromptPackage(createPromptPackage({ templates: [], workflows: [workflow] }));
     await expect(importPromptPackage(value)).rejects.toThrow("already exists");
     expect(await listTemplates()).toEqual([]);
