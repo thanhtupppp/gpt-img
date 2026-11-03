@@ -104,7 +104,7 @@ describe("hybrid workflow graph runtime", () => {
       },
     };
     const result = await executeWorkflowGraph(graph(["image"], []), adapter, {
-      save: async (snapshot) => persisted.push(snapshot),
+      save: async (snapshot) => { persisted.push(snapshot); },
       isCancelRequested: async () => false,
     });
     expect(result.status).toBe("succeeded");
