@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Download, ImagePlus, LoaderCircle, Sparkles, Upload, X } from "lucide-react";
 import { generateGeminiImage, testGeminiConnection, type GeminiImageModel, type ImageAspectRatio } from "../../features/images/geminiImageApi";
+import { getAsset, listAssets, type AssetMetadata } from "../../storage/assetRepository";
 
 const models: { value: GeminiImageModel; label: string }[] = [
   { value: "gemini-nano-banana-2.1", label: "Nano Banana 2.1" },
@@ -39,6 +40,10 @@ export function ImageStudio() {
   const [connection, setConnection] = useState<"unknown" | "ready" | "failed">("unknown");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [assetPickerOpen, setAssetPickerOpen] = useState(false);
+  const [assets, setAssets] = useState<AssetMetadata[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [assetLoadingId, setAssetLoadingId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => {
@@ -59,6 +64,39 @@ export function ImageStudio() {
     }
     setSource(file);
     setSourcePreview(URL.createObjectURL(file));
+  };
+
+  const openAssetPicker = async () => {
+    setAssetPickerOpen(true);
+    setAssetsLoading(true);
+    setError("");
+    try {
+      setAssets(await listAssets());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể tải Asset Library.");
+      setAssetPickerOpen(false);
+    } finally {
+      setAssetsLoading(false);
+    }
+  };
+
+  const chooseSavedAsset = async (asset: AssetMetadata) => {
+    setAssetLoadingId(asset.id);
+    setError("");
+    try {
+      const stored = await getAsset(asset.id);
+      if (!stored) throw new Error("Ảnh không còn tồn tại trong Asset Library.");
+      const file = new File([stored.blob], stored.name, { type: stored.mimeType, lastModified: Date.parse(stored.updatedAt) || Date.now() });
+      if (file.size > MAX_INPUT_BYTES) throw new Error("Ảnh đã lưu vượt giới hạn 10 MB của Image Studio.");
+      setSource(file);
+      setSourcePreview(URL.createObjectURL(file));
+      setAssetPickerOpen(false);
+      setNotice(`Đã chọn ảnh “${asset.name}” từ Asset Library.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể mở ảnh đã lưu.");
+    } finally {
+      setAssetLoadingId(null);
+    }
   };
 
   const checkConnection = async () => {
@@ -134,7 +172,7 @@ export function ImageStudio() {
 
           <div>
             <div className="mb-2 flex items-center justify-between"><span className="text-sm font-medium text-slate-200">Ảnh tham chiếu <span className="text-xs font-normal text-slate-500">(không bắt buộc)</span></span>{source && <button type="button" onClick={() => { setSource(null); setSourcePreview(""); }} className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-white"><X size={12}/> Xóa ảnh</button>}</div>
-            {sourcePreview ? <div className="relative overflow-hidden rounded-xl border border-line bg-[#090d16]"><img src={sourcePreview} alt="Ảnh tham chiếu đã chọn" className="max-h-64 w-full object-contain"/><div className="border-t border-line px-3 py-2 text-xs text-slate-400">{source?.name} · {((source?.size ?? 0) / 1024 / 1024).toFixed(2)} MB</div></div> : <button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-28 w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-[#090d16]/60 text-xs text-slate-400 hover:border-indigo-300/50 hover:text-indigo-200"><ImagePlus size={22}/> Upload PNG, JPEG hoặc WebP · tối đa 10 MB</button>}
+            {sourcePreview ? <div className="relative overflow-hidden rounded-xl border border-line bg-[#090d16]"><img src={sourcePreview} alt="Ảnh tham chiếu đã chọn" className="max-h-64 w-full object-contain"/><div className="border-t border-line px-3 py-2 text-xs text-slate-400">{source?.name} · {((source?.size ?? 0) / 1024 / 1024).toFixed(2)} MB</div></div> : <div className="grid gap-2 sm:grid-cols-2"><button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-[#090d16]/60 text-xs text-slate-400 hover:border-indigo-300/50 hover:text-indigo-200"><ImagePlus size={22}/> Upload image · tối đa 10 MB</button><button type="button" onClick={() => void openAssetPicker()} className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-line bg-[#090d16]/60 text-xs text-slate-400 hover:border-indigo-300/50 hover:text-indigo-200"><ImagePlus size={22}/> Chọn từ Asset Library</button></div>}
             <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" aria-label="Chọn ảnh tham chiếu" onChange={event => { chooseFile(event.target.files?.[0]); event.target.value = ""; }}/>
           </div>
 
@@ -157,6 +195,14 @@ export function ImageStudio() {
         </div>
       </div>
 
+      {assetPickerOpen && <div role="dialog" aria-modal="true" aria-labelledby="asset-picker-title" className="fixed inset-0 z-50 grid place-items-center bg-black/80 p-4">
+        <div className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-line bg-[#0c1220]">
+          <div className="flex items-center justify-between border-b border-line p-4"><div><h3 id="asset-picker-title" className="text-sm font-semibold">Chọn ảnh từ Asset Library</h3><p className="mt-1 text-xs text-slate-500">Ảnh chỉ được tải vào Image Studio sau khi anh chọn.</p></div><button type="button" aria-label="Đóng Asset Picker" onClick={() => setAssetPickerOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-white/5"><X size={18}/></button></div>
+          <div className="max-h-[65vh] space-y-2 overflow-y-auto p-4">
+            {assetsLoading ? <p className="py-10 text-center text-sm text-slate-500">Đang tải danh sách ảnh...</p> : assets.length === 0 ? <p className="py-10 text-center text-sm text-slate-500">Asset Library chưa có ảnh nào.</p> : assets.map(asset => <button key={asset.id} type="button" disabled={assetLoadingId !== null} onClick={() => void chooseSavedAsset(asset)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-line bg-panel/60 p-3 text-left hover:border-indigo-300/40 disabled:opacity-50"><span className="min-w-0"><span className="block truncate text-sm text-slate-200">{asset.name}</span><span className="mt-1 block text-[10px] text-slate-500">{(asset.size / 1048576).toFixed(2)} MB · {asset.mimeType} · {asset.source === "workflow" ? "Workflow output" : "Upload"}</span></span><span className="shrink-0 text-xs text-indigo-200">{assetLoadingId === asset.id ? "Đang tải..." : "Chọn ảnh"}</span></button>)}
+          </div>
+        </div>
+      </div>}
       {notice && <p role="status" className="rounded-xl border border-emerald-300/20 bg-emerald-400/[.06] px-4 py-3 text-xs text-emerald-200">{notice}</p>}
       {connection === "ready" && <p className="text-[11px] text-emerald-300">Gemini connection verified during this session.</p>}
       {error && <p role="alert" className="flex items-start gap-2 rounded-xl border border-rose-300/20 bg-rose-400/10 px-4 py-3 text-xs text-rose-200"><AlertCircle size={14} className="mt-0.5 shrink-0"/>{error}</p>}
