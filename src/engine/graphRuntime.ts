@@ -54,6 +54,7 @@ export interface GraphExecutionHooks {
 export interface GraphExecutionOptions {
   maxConcurrency?: number;
   attempt?: number;
+  graphId?: string;
 }
 
 const timestamp = () => new Date().toISOString();
@@ -94,7 +95,7 @@ export async function executeWorkflowGraph(
   );
   const outputs = new Map<string, WorkflowNodeOutput>();
   const snapshot: GraphExecutionSnapshot = {
-    graphId: graph.schemaVersion,
+    graphId: options.graphId ?? crypto.randomUUID(),
     status: "running",
     progress: 0,
     nodes: graph.nodes.map((node) => records.get(node.id)!),
@@ -129,6 +130,11 @@ export async function executeWorkflowGraph(
       let waveFailure: unknown;
       const worker = async () => {
         while (cursor < wave.length && !waveFailure && !controller.signal.aborted) {
+          if (await hooks.isCancelRequested(snapshot.graphId)) {
+            waveFailure = new GraphExecutionError("Workflow execution cancelled by user.", "GRAPH_CANCELLED");
+            controller.abort();
+            break;
+          }
           const step = wave[cursor++];
           const record = records.get(step.id)!;
           record.status = "running";
@@ -194,10 +200,5 @@ export async function executeWorkflowGraph(
   }
 }
 
-import { buildWorkflowExecutionPlan, validateWorkflowGraph } from "./workflowGraph";
+import { buildWorkflowExecutionPlan } from "./workflowGraph";
 
-export function buildWorkflowExecutionPlanForRuntime(graph: WorkflowGraph) {
-  const issues = validateWorkflowGraph(graph);
-  if (issues.length) throw new GraphExecutionError(issues.map((issue) => issue.message).join(" "), "GRAPH_FAILED");
-  return buildWorkflowExecutionPlan(graph);
-}
