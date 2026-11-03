@@ -70,7 +70,7 @@ def _input_for_node(node: dict[str, Any], parent_outputs: dict[str, dict[str, An
         return base64.b64encode(data).decode("ascii"), mime
     for output in parent_outputs.values():
         if output.get("assetId"):
-            data, mime = asset_store.get_image(output["assetId"])
+            data, mime = asset_store.get_image(output["assetId"], workspace_id)
             return base64.b64encode(data).decode("ascii"), mime
     return None, None
 
